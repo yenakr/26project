@@ -1,0 +1,150 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// NextAuth Models
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  hashedPassword String?
+
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  workoutLogs   WorkoutLog[]
+
+  // Many-to-Many relations for "Likes"
+  likedRoutines WorkoutRoutine[] @relation("UserLikedRoutines")
+  likedProducts Product[]        @relation("UserLikedProducts")
+
+  // Goals and Metrics
+  goal          Goal?
+  bodyMetrics   BodyMetric[]
+}
+
+model Goal {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  targetWeight     Float?
+  targetMuscleMass Float?
+  targetBodyFat    Float?
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BodyMetric {
+  id               String   @id @default(cuid())
+  userId           String
+  weight           Float?
+  muscleMass       Float?
+  bodyFat          Float?
+  date             DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Muscle Growth App Specific Models
+
+model WorkoutRoutine {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  targetMuscle  String
+  splitType     String   @default("무분할") // e.g. 2분할, 3분할, 부위별
+  difficulty    String
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+
+  // Users who liked this routine
+  likedByUsers  User[]   @relation("UserLikedRoutines")
+}
+
+model WorkoutLog {
+  id           String   @id @default(cuid())
+  userId       String
+  routineName  String
+  durationMins Int?
+  date         DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  description    String
+  price          Int
+  proteinContent Int      // in grams
+  imageUrl       String?
+  createdAt      DateTime @default(now())
+
+  // Users who liked this product
+  likedByUsers   User[]   @relation("UserLikedProducts")
+  orderItems     OrderItem[]
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  userId      String
+  totalAmount Int
+  status      String   @default("PENDING") // PENDING, PAID, SHIPPED
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Int     // Price at the time of purchase
+
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
