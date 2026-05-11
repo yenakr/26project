@@ -52,11 +52,29 @@ model User {
   image         String?
   hashedPassword String?
 
-  accounts      Account[]
-  sessions      Session[]
+  accounts         Account[]
+  sessions         Session[]
+  emergencyRecords EmergencyRecord[]
 }
 
 // Removed Goal and BodyMetric
 
 // CODE BLUE Specific Models
-// (Models will be added here if needed for the prototype)
+
+model EmergencyRecord {
+  id             String   @id @default(cuid())
+  userId         String?  // Optional for now to allow anonymous testing, or link to User
+  patientAge     String?
+  patientGender  String?
+  situation      String?
+  background     String?
+  bp             String?
+  hr             String?
+  spo2           String?
+  nrs            String?
+  recommendation String?
+  preKtas        String?
+  createdAt      DateTime @default(now())
+
+  user           User?    @relation(fields: [userId], references: [id])
+}
