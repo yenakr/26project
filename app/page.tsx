@@ -1,10 +1,14 @@
-import React from 'react';
+"use client";
+
+import React, { useState } from 'react';
 import PatientSummary from '@/components/PatientSummary';
 import SBARForm from '@/components/SBARForm';
 import HospitalDashboard from '@/components/HospitalDashboard';
 import DiseaseTabs from '@/components/DiseaseTabs';
 
 export default function Home() {
+  const [isAssessed, setIsAssessed] = useState(false);
+
   return (
     <main className="container">
       <header className="header flex justify-between items-center">
@@ -24,24 +28,42 @@ export default function Home() {
       </header>
 
       <div className="grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-        {/* Section 1: Patient Summary */}
-        <section>
-          <PatientSummary />
-        </section>
-
-        {/* Layout for larger screens: SBAR on left, Hospitals/Diseases on right */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
-          {/* Section 2: SBAR Form */}
-          <section>
-            <SBARForm />
+        
+        {!isAssessed ? (
+          // 초기 화면: SBAR 폼만 노출
+          <section style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+            <SBARForm onAssess={() => setIsAssessed(true)} />
           </section>
+        ) : (
+          // 평가 완료 화면: 전체 정보 노출
+          <div className="fade-in">
+            {/* Section 1: Assessment Result (Patient Summary) */}
+            <section className="mb-6">
+              <PatientSummary />
+            </section>
 
-          {/* Section 3 & 4: Hospitals and Diseases */}
-          <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <HospitalDashboard />
-            <DiseaseTabs />
-          </section>
-        </div>
+            {/* Layout for Hospitals and Diseases */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
+              <section>
+                <HospitalDashboard />
+              </section>
+              <section>
+                <DiseaseTabs />
+              </section>
+            </div>
+            
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <button 
+                className="btn" 
+                style={{ backgroundColor: '#e2e8f0', color: '#475569' }} 
+                onClick={() => setIsAssessed(false)}
+              >
+                <i className="ri-refresh-line"></i> 초기화 및 새 환자 입력
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
       
       <footer style={{ marginTop: '3rem', textAlign: 'center', padding: '2rem 0', borderTop: '1px solid var(--border-color)' }}>
@@ -50,6 +72,16 @@ export default function Home() {
           "이송 지연 문제는 단순히 병상 수 부족만의 문제가 아니라, 병원 전 정보 전달의 불일치, 수용 가능 정보의 비표준화, 고위험 환자군별 사전 이송체계 부족이 함께 작용하는 문제이다. 따라서 <strong>병원 전 인계 표준화, 수용 정보 표준화, 고위험·저빈도 질환 이송 리스트 구축</strong>이 함께 필요하다."
         </p>
       </footer>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .fade-in {
+          animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}} />
     </main>
   );
 }
