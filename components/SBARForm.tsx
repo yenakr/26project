@@ -56,7 +56,36 @@ export default function SBARForm({ onAssess }: SBARFormProps) {
       <h2 className="section-title text-center" style={{ justifyContent: 'center', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
         <i className="ri-file-list-3-line text-blue-primary"></i> 병원 전 환자 상태 평가 (SBAR)
       </h2>
-      <p className="text-gray mb-6 text-center">모든 항목은 선택 입력이며, 입력된 데이터는 중앙 DB에 안전하게 기록됩니다.</p>
+      <p className="text-gray mb-4 text-center">모든 항목은 선택 입력이며, 입력된 데이터는 중앙 DB에 안전하게 기록됩니다.</p>
+
+      {/* Quick Select Buttons */}
+      <div className="mb-6">
+        <p className="text-sm font-bold text-gray mb-2"><i className="ri-flashlight-fill text-blue-primary"></i> 빠른 입력 템플릿 (흔한 중증응급)</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "심근경색 (STEMI)", data: { situation: "흉통, 식은땀 (Alert)", background: "고혈압", bp: "90/60", hr: "110", spo2: "94", nrs: "8", recommendation: "PCI 가능 병원, 심장내과 대기" } },
+            { label: "중증 뇌졸중 의심", data: { situation: "우측 편마비, 구음장애 (Alert)", background: "당뇨", bp: "180/100", hr: "85", spo2: "97", nrs: "-", recommendation: "CT/MRI, 혈전용해/제거술 가능 병원" } },
+            { label: "중증 다발성 외상", data: { situation: "교통사고, 다발성 골절 (Verbal)", background: "특이사항 없음", bp: "80/50", hr: "130", spo2: "90", nrs: "10", recommendation: "외상팀, 즉시 수술실, 혈액 보유 병원" } },
+            { label: "심정지 (CPR 중)", data: { situation: "심정지 (Unresponsive)", background: "미상", bp: "-", hr: "0", spo2: "-", nrs: "-", recommendation: "응급실 소생실, 즉각적인 전문소생술" } }
+          ].map((template, idx) => (
+            <button
+              key={idx}
+              className="badge"
+              style={{ background: '#f1f5f9', color: 'var(--blue-dark)', border: '1px solid #cbd5e1', cursor: 'pointer', padding: '0.4rem 0.8rem' }}
+              onClick={() => setFormData(template.data)}
+            >
+              {template.label}
+            </button>
+          ))}
+          <button 
+            className="badge" 
+            style={{ background: '#fff', color: '#64748b', border: '1px dashed #cbd5e1', cursor: 'pointer', padding: '0.4rem 0.8rem' }}
+            onClick={() => setFormData({ situation: "", background: "", bp: "", hr: "", spo2: "", nrs: "", recommendation: "" })}
+          >
+            초기화
+          </button>
+        </div>
+      </div>
 
       <div className="sbar-inputs grid-2">
         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
