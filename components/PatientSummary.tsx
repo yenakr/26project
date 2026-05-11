@@ -1,12 +1,14 @@
 "use client";
 
 import React from 'react';
+import { useSession } from "next-auth/react";
 
 interface PatientSummaryProps {
   data?: any;
 }
 
 export default function PatientSummary({ data }: PatientSummaryProps) {
+  const { data: session } = useSession();
   // If no data provided, render nothing or placeholder.
   // We assume data is always provided when this component is mounted in the current workflow.
   const d = data || {};
@@ -43,7 +45,10 @@ export default function PatientSummary({ data }: PatientSummaryProps) {
       </div>
       
       <div className="text-center mt-2">
-        <p className="text-sm text-gray"><i className="ri-information-line"></i> 위 정보를 바탕으로 주변 병원의 수용 현황을 탐색했습니다. (DB 저장 완료)</p>
+        <p className="text-sm text-gray">
+          <i className="ri-information-line"></i> 위 정보를 바탕으로 주변 병원의 수용 현황을 탐색했습니다. 
+          {session ? " (DB 저장 완료)" : " (비로그인: DB 저장 안 됨)"}
+        </p>
       </div>
     </div>
   );
