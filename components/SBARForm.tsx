@@ -297,43 +297,73 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
     }
   };
 
-  const handleSave = async () => {
-    if (!session) return;
+  const handleCompleteFlow = async () => {
+    // 1. Audit Log the completion attempt
+    const { timestamp, displayTime } = getCurrentTimeStrings();
+    const startLog: AuditLog = {
+      id: createLogId(), timestamp, displayTime, actionType: 'select', category: 'system',
+      fieldPath: 'system.complete', selectionMode: 'single', label: '평가 완료 시도',
+      value: session?.user?.id ? '로그인 사용자 저장 시도' : '비로그인 사용자 바로 진행',
+      status: 'active', source: 'user'
+    };
     
-    setIsSaving(true);
+    const newLogs = [...auditLogs, startLog];
+    setAuditLogs(newLogs);
     setSaveStatus('idle');
-    
-    try {
-      const response = await fetch('/api/records', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientAge: scene.patients,
-          patientGender: "", // Could be added to UI later
-          situation: scene.safety,
-          background: scene.risks.join(', '),
-          bp: `${vitals.sbp}/${vitals.dbp}`,
-          hr: vitals.hr,
-          spo2: vitals.spo2,
-          nrs: vitals.nrs,
-          recommendation: primary.actions.join(', '),
-          preKtas: "N/A",
-          logs: auditLogs, // Persistence of audit logs
-        }),
-      });
 
-      if (response.ok) {
-        setSaveStatus('success');
-        setTimeout(() => setSaveStatus('idle'), 3000);
-      } else {
+    // 2. Conditional Saving (only for logged-in users)
+    if (session?.user?.id) {
+      setIsSaving(true);
+      try {
+        const response = await fetch('/api/records', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientAge: scene.patients,
+            patientGender: "", 
+            situation: scene.safety,
+            background: scene.risks.join(', '),
+            bp: `${vitals.sbp}/${vitals.dbp}`,
+            hr: vitals.hr,
+            spo2: vitals.spo2,
+            nrs: vitals.nrs,
+            recommendation: primary.actions.join(', '),
+            preKtas: "N/A",
+            logs: newLogs,
+          }),
+        });
+
+        if (response.ok) {
+          setSaveStatus('success');
+          newLogs.push({
+            id: createLogId(), ...getCurrentTimeStrings(), actionType: 'update', category: 'system',
+            fieldPath: 'system.save', selectionMode: 'single', label: '기록 저장 완료',
+            value: 'Neon DB 저장 성공', status: 'active', source: 'user'
+          });
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          console.error("Save failed response:", errData);
+          setSaveStatus('error');
+          newLogs.push({
+            id: createLogId(), ...getCurrentTimeStrings(), actionType: 'update', category: 'system',
+            fieldPath: 'system.save', selectionMode: 'single', label: '기록 저장 실패',
+            value: errData.error || '서버 응답 오류', status: 'active', source: 'user'
+          });
+        }
+      } catch (error) {
+        console.error("SAVE_ERROR", error);
         setSaveStatus('error');
+      } finally {
+        setIsSaving(false);
       }
-    } catch (error) {
-      console.error("SAVE_ERROR", error);
-      setSaveStatus('error');
-    } finally {
-      setIsSaving(false);
     }
+
+    // 3. ALWAYS proceed to the next step (non-blocking)
+    setAuditLogs(newLogs);
+    setTimeout(() => {
+      triggerUpdate(newLogs);
+      onComplete();
+    }, 100);
   };
 
   // UI Helpers
@@ -483,45 +513,43 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
         </div>
       </div>
 
-      <div className="mt-6 mb-8 flex flex-col sm:flex-row justify-between gap-4">
-        {session ? (
-          <button 
-            className="btn" 
-            onClick={handleSave} 
-            disabled={isSaving}
-            style={{ 
-              flex: 1, 
-              padding: '1.25rem', 
-              fontSize: '1.125rem', 
-              backgroundColor: saveStatus === 'success' ? '#059669' : 'var(--blue-primary)',
-              color: 'white' 
-            }}
-          >
-            <i className={isSaving ? "ri-loader-4-line ri-spin" : (saveStatus === 'success' ? "ri-checkbox-circle-line" : "ri-save-line")}></i>
-            <span className="ml-2">
-              {isSaving ? '저장 중...' : (saveStatus === 'success' ? '저장 완료!' : (saveStatus === 'error' ? '저장 실패(재시도)' : 'DB에 기록 저장'))}
-            </span>
-          </button>
-        ) : (
-          <button 
-            className="btn" 
-            disabled
-            style={{ 
-              flex: 1, 
-              padding: '1.25rem', 
-              fontSize: '1.125rem', 
-              backgroundColor: '#f1f5f9',
-              color: '#94a3b8',
-              cursor: 'not-allowed'
-            }}
-          >
-            <i className="ri-lock-line"></i>
-            <span className="ml-2">로그인 후 기록 저장 가능</span>
-          </button>
-        )}
-        <button className="btn btn-primary" onClick={onComplete} style={{ flex: 1, padding: '1.25rem', fontSize: '1.125rem', backgroundColor: 'var(--green-primary)' }}>
-          <i className="ri-check-double-line mr-2"></i> 평가 완료 및 인계 요약
+      <div className="mt-8 mb-12">
+        <button 
+          className="btn btn-primary w-full py-5 flex items-center justify-center gap-3 shadow-xl"
+          onClick={handleCompleteFlow}
+          disabled={isSaving}
+          style={{ 
+            fontSize: '1.25rem', 
+            background: 'var(--green-primary)',
+            borderRadius: '16px'
+          }}
+        >
+          {isSaving ? (
+            <>
+              <i className="ri-loader-4-line ri-spin"></i>
+              저장 중...
+            </>
+          ) : (
+            <>
+              <i className="ri-check-double-line"></i>
+              {session?.user?.id ? '기록 저장 및 평가 완료' : '평가 완료 및 인계 준비'}
+            </>
+          )}
         </button>
+        
+        {!session?.user?.id && (
+          <p className="text-center text-xs text-gray mt-4">
+            <i className="ri-information-line"></i> 로그인하지 않아도 진행할 수 있습니다. <br />
+            로그인 시 모든 평가 내용이 DB에 자동 기록됩니다.
+          </p>
+        )}
+        
+        {saveStatus === 'error' && (
+          <p className="text-center text-xs text-red-primary font-bold mt-2 animate-pulse">
+            <i className="ri-error-warning-line"></i> 서버 저장에 실패했습니다. <br />
+            현재 입력된 내용으로 평가 완료를 진행합니다.
+          </p>
+        )}
       </div>
       
       <div className="sticky-action-bar">

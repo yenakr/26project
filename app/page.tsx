@@ -63,17 +63,9 @@ export default function Home() {
   const handleAssessComplete = async () => {
     setIsCompleted(true);
     setShowHospitalList(true); // Automatically show hospitals when completing
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (session && extendedData) {
-      try {
-        await fetch('/api/records', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...extendedData, userId: session.user?.email })
-        });
-      } catch (err) {
-        console.error(err);
-      }
+    
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
