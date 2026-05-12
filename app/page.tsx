@@ -15,17 +15,18 @@ import { RecommendedHospital, rankHospitals, mockHospitals } from '@/utils/hospi
 export default function Home() {
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState('new');
-  
+
   // V3 States
   const [isCompleted, setIsCompleted] = useState(false);
   const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
-  
+
   const [assessmentData, setAssessmentData] = useState<TriageData | null>(null);
   const [extendedData, setExtendedData] = useState<any>(null); // holds scene, sample, customComplaint
-  const [timelineLog, setTimelineLog] = useState<{time: string, msg: string}[]>([]);
+  const [timelineLog, setTimelineLog] = useState<{ time: string, msg: string }[]>([]);
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
   const [rankedHospitals, setRankedHospitals] = useState<RecommendedHospital[]>([]);
   const [region, setRegion] = useState({ sido: "서울특별시", sigungu: "" });
+  const [showHospitalList, setShowHospitalList] = useState(false); // Controls explicit hospital list display
 
   // Live update handler from Form
   const [dispatchTimelineAction, setDispatchTimelineAction] = useState<any>(null);
@@ -35,13 +36,13 @@ export default function Home() {
     setExtendedData(extData);
     setTimelineLog(timeline);
     setDispatchTimelineAction(() => dispatchFn);
-    
-    // Live Triage & Hospital Ranking
+
+    // Live Triage (always visible)
     const triage = calculateSeverity(data);
     setTriageResult(triage);
-    
+
+    // Calculate ranking in background but don't force showHospitalList
     if (triage.level < 4 || (data.complaints["심정지/무반응"]?.length ?? 0) > 0) {
-      // Filter by Region
       const regionHospitals = mockHospitals.filter(h => h.sido === extData.region.sido);
       setRankedHospitals(rankHospitals(data, triage, regionHospitals));
     } else {
@@ -51,6 +52,7 @@ export default function Home() {
 
   const handleAssessComplete = async () => {
     setIsCompleted(true);
+    setShowHospitalList(true); // Automatically show hospitals when completing
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (session && extendedData) {
       try {
@@ -73,6 +75,7 @@ export default function Home() {
       setTriageResult(null);
       setRankedHospitals([]);
       setIsCompleted(false);
+      setShowHospitalList(false);
       setIsTimelineExpanded(false);
     }
   };
@@ -87,15 +90,14 @@ export default function Home() {
             </div>
             <div className="title">
               <h1 style={{ marginBottom: 0 }}>CODE BLUE</h1>
-              <p>전국 확장형 프로토타입 · 실시간 병상 미연동 · 이송 전 병원 확인 필요</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm">
               <i className="ri-map-pin-2-fill text-blue-primary"></i>
               <div className="flex items-center gap-1">
-                <select 
+                <select
                   className="text-sm font-bold border-none bg-transparent p-0 focus:ring-0 cursor-pointer"
                   value={region.sido}
                   onChange={(e) => setRegion(p => ({ ...p, sido: e.target.value }))}
@@ -106,7 +108,7 @@ export default function Home() {
                   <option value="강원특별자치도">강원특별자치도</option>
                   <option value="충청북도">충청북도</option>
                 </select>
-                <input 
+                <input
                   type="text"
                   placeholder="시·군·구"
                   className="text-sm border-none bg-transparent p-0 focus:ring-0 w-20"
@@ -146,8 +148,8 @@ export default function Home() {
         <div className="dashboard-layout">
           {/* Left Column: Input Form (Hidden on Mobile when Completed) */}
           <div className="left-col" style={{ display: isCompleted ? 'none' : 'block' }}>
-            <SBARForm 
-              key={assessmentData === null ? 'reset' : 'active'} 
+            <SBARForm
+              key={assessmentData === null ? 'reset' : 'active'}
               region={region}
               onLiveUpdate={handleLiveUpdate}
               onComplete={handleAssessComplete}
@@ -156,7 +158,7 @@ export default function Home() {
 
           {/* Right Column: Live Dashboards */}
           <div className="right-col flex-col gap-4" style={{ width: isCompleted ? '100%' : 'auto', gridColumn: isCompleted ? '1 / -1' : 'auto' }}>
-            
+
             {/* SBAR Output only visible when Completed */}
             {isCompleted && extendedData && (
               <PatientSummary data={assessmentData} extData={extendedData} triage={triageResult!} />
@@ -164,19 +166,19 @@ export default function Home() {
 
             {/* Live Triage Card */}
             {triageResult && (
-              <div className="card" style={{ 
+              <div className="card" style={{
                 borderLeft: `8px solid ${triageResult.level === 1 ? 'var(--red-primary)' : triageResult.level === 2 ? 'var(--amber-primary)' : triageResult.level === 3 ? 'var(--yellow-primary)' : 'var(--green-primary)'}`,
-                padding: '1.25rem', marginBottom: '1rem' 
+                padding: '1.25rem', marginBottom: '1rem'
               }}>
                 <div className="flex items-center gap-2 mb-2">
                   <i className="ri-alarm-warning-fill" style={{ fontSize: '1.5rem', color: triageResult.level <= 2 ? 'var(--red-primary)' : 'var(--amber-primary)' }}></i>
                   <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>중증도 분류 결과</h3>
                 </div>
                 <div className="mb-2">
-                  <span className="badge-tag" style={{ 
-                    background: triageResult.level === 1 ? 'var(--red-bg)' : triageResult.level === 2 ? 'var(--amber-bg)' : 'var(--yellow-bg)', 
+                  <span className="badge-tag" style={{
+                    background: triageResult.level === 1 ? 'var(--red-bg)' : triageResult.level === 2 ? 'var(--amber-bg)' : 'var(--yellow-bg)',
                     color: triageResult.level === 1 ? 'var(--red-dark)' : triageResult.level === 2 ? '#b45309' : '#854d0e',
-                    fontSize: '1rem', padding: '0.4rem 0.8rem' 
+                    fontSize: '1rem', padding: '0.4rem 0.8rem'
                   }}>
                     {triageResult.label}
                   </span>
@@ -188,9 +190,29 @@ export default function Home() {
               </div>
             )}
 
-            {/* Live Hospital Dashboard */}
-            {triageResult && (triageResult.level < 4 || (assessmentData?.complaints["심정지/무반응"]?.length ?? 0) > 0) && (
-              <HospitalDashboard hospitals={rankedHospitals} />
+            {/* Hospital Recommendation - Replaced with a button to reduce clutter */}
+            {triageResult && !showHospitalList && !isCompleted && (
+              <button 
+                className="btn btn-primary w-full py-4 shadow-lg flex items-center justify-center gap-2 mb-4"
+                style={{ background: 'var(--blue-primary)', color: 'white', borderRadius: '12px', fontSize: '1.05rem' }}
+                onClick={() => setShowHospitalList(true)}
+              >
+                <i className="ri-hospital-line"></i>
+                수용 가능한 병원 리스트 확인
+              </button>
+            )}
+
+            {/* Live Hospital Dashboard - Only shown when explicit button clicked or completed */}
+            {(showHospitalList || isCompleted) && triageResult && (triageResult.level < 4 || (assessmentData?.complaints["심정지/무반응"]?.length ?? 0) > 0) && (
+              <div className="flex flex-col gap-2 mb-4">
+                <div className="flex justify-between items-center px-1">
+                  <h3 className="section-title mb-0" style={{ fontSize: '1rem' }}>병원 수용 가능 현황</h3>
+                  {!isCompleted && (
+                    <button onClick={() => setShowHospitalList(false)} className="text-xs text-gray underline">목록 닫기</button>
+                  )}
+                </div>
+                <HospitalDashboard hospitals={rankedHospitals} />
+              </div>
             )}
 
             {/* Live Timeline Log */}
@@ -256,13 +278,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Footer Disclaimer */}
-      <footer style={{ marginTop: '2rem', padding: '1.5rem', background: '#f8fafc', borderTop: '1px solid var(--border-color)', borderRadius: '12px' }}>
-        <p className="text-sm text-center" style={{ color: '#64748b', lineHeight: '1.5' }}>
-          <i className="ri-error-warning-line"></i> 본 프로토타입의 병원 추천은 응급의료기관 기본정보와 위치 기반 후보 제시에 한정됩니다. <br className="hidden sm:block"/>
-          실시간 병상 및 수용 가능 여부는 제공하지 않으며, 실제 이송 전 병원 확인이 필요합니다.
-        </p>
-      </footer>
     </div>
   );
 }
