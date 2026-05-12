@@ -33,7 +33,7 @@ export default function RegisterPage() {
     <div className="container" style={{ maxWidth: '400px', marginTop: '10vh' }}>
       <div className="card text-center" style={{ borderTop: '4px solid var(--blue-primary)' }}>
         <h2 className="section-title justify-center mb-2">
-          <i className="ri-user-add-line text-blue-primary"></i> 구급대원 등록
+          <i className="ri-user-add-line text-blue-primary"></i> 회원가입
         </h2>
         <p className="text-gray mb-6 text-sm">CODE BLUE 시스템 사용을 위한 계정 생성</p>
         

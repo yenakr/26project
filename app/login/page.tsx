@@ -28,7 +28,7 @@ export default function LoginPage() {
         <h2 className="section-title justify-center mb-2">
           <i className="ri-hospital-fill text-blue-primary"></i> CODE BLUE 로그인
         </h2>
-        <p className="text-gray mb-6 text-sm">구급대원 전용 시스템에 접근합니다.</p>
+        <p className="text-gray mb-6 text-sm">시스템 접근을 위해 로그인해 주세요.</p>
         
         <form onSubmit={loginUser}>
           <div className="form-group text-left">

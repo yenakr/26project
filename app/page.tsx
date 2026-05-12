@@ -118,7 +118,7 @@ export default function Home() {
             {session ? (
               <div className="flex items-center gap-2">
                 <div className="text-sm hidden sm:block">
-                  <span className="font-bold" style={{ color: 'var(--blue-dark)' }}>{session.user?.name || '구급대원'}</span>
+                  <span className="font-bold" style={{ color: 'var(--blue-dark)' }}>{session.user?.name || '사용자'}</span>
                 </div>
                 <button onClick={() => signOut()} className="btn" style={{ minHeight: '36px', padding: '0 12px', fontSize: '13px', background: '#e2e8f0', color: '#475569' }}>로그아웃</button>
               </div>
