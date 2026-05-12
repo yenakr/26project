@@ -29,6 +29,7 @@ export default function Home() {
   const [rankedHospitals, setRankedHospitals] = useState<RecommendedHospital[]>([]);
   const [region, setRegion] = useState({ sido: "서울특별시", sigungu: "" });
   const [showHospitalList, setShowHospitalList] = useState(false); // Controls explicit hospital list display
+  const [historyRecords, setHistoryRecords] = useState<any[]>([]); // For real history tab
 
   // Live update handler from Form
   const [dispatchTimelineAction, setDispatchTimelineAction] = useState<any>(null);
@@ -47,10 +48,17 @@ export default function Home() {
     if (triage.level < 4 || (data.complaints["심정지/무반응"]?.length ?? 0) > 0) {
       const regionHospitals = mockHospitals.filter(h => h.sido === extData.region.sido);
       setRankedHospitals(rankHospitals(data, triage, regionHospitals));
-    } else {
-      setRankedHospitals([]);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'history' && session) {
+      fetch('/api/records')
+        .then(res => res.json())
+        .then(data => setHistoryRecords(data))
+        .catch(err => console.error(err));
+    }
+  }, [activeTab, session]);
 
   const handleAssessComplete = async () => {
     setIsCompleted(true);
@@ -273,10 +281,33 @@ export default function Home() {
       )}
 
       {activeTab === 'history' && (
-        <div className="card text-center" style={{ padding: '4rem 2rem' }}>
-          <i className="ri-database-2-line" style={{ fontSize: '3rem', color: '#cbd5e1' }}></i>
-          <h2 className="mt-4 font-bold text-gray">과거 기록 조회</h2>
-          <p className="text-sm text-gray mt-2">이 기능은 실제 서버 배포 후 활성화됩니다.</p>
+        <div className="flex flex-col gap-4">
+          <h2 className="section-title"><i className="ri-history-line text-blue-primary"></i> 내 과거 인계 기록 ({historyRecords.length})</h2>
+          {!session ? (
+            <div className="card text-center p-12">
+              <p className="text-gray mb-4">로그인하시면 과거 기록을 조회할 수 있습니다.</p>
+              <Link href="/login" className="btn btn-primary inline-block">로그인하기</Link>
+            </div>
+          ) : historyRecords.length === 0 ? (
+            <div className="card text-center p-12 text-gray">저장된 기록이 없습니다.</div>
+          ) : (
+            historyRecords.map((record) => (
+              <div key={record.id} className="card p-4 hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push('/history')}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="badge-tag" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}>
+                        {new Date(record.createdAt).toLocaleString('ko-KR')}
+                      </span>
+                      <span className="text-sm font-bold">{record.patientAge || '환자 정보 없음'}</span>
+                    </div>
+                    <p className="text-sm text-gray">{record.situation || '상황 정보 없음'}</p>
+                  </div>
+                  <i className="ri-arrow-right-s-line text-gray"></i>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 

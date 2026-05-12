@@ -484,7 +484,7 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
       </div>
 
       <div className="mt-6 mb-8 flex flex-col sm:flex-row justify-between gap-4">
-        {session && (
+        {session ? (
           <button 
             className="btn" 
             onClick={handleSave} 
@@ -501,6 +501,22 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
             <span className="ml-2">
               {isSaving ? '저장 중...' : (saveStatus === 'success' ? '저장 완료!' : (saveStatus === 'error' ? '저장 실패(재시도)' : 'DB에 기록 저장'))}
             </span>
+          </button>
+        ) : (
+          <button 
+            className="btn" 
+            disabled
+            style={{ 
+              flex: 1, 
+              padding: '1.25rem', 
+              fontSize: '1.125rem', 
+              backgroundColor: '#f1f5f9',
+              color: '#94a3b8',
+              cursor: 'not-allowed'
+            }}
+          >
+            <i className="ri-lock-line"></i>
+            <span className="ml-2">로그인 후 기록 저장 가능</span>
           </button>
         )}
         <button className="btn btn-primary" onClick={onComplete} style={{ flex: 1, padding: '1.25rem', fontSize: '1.125rem', backgroundColor: 'var(--green-primary)' }}>
