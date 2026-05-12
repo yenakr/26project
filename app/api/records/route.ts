@@ -6,8 +6,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     const record = await prisma.emergencyRecord.create({
       data: {
-        userId: (session.user as any).id,
+        userId: session.user.id,
         patientAge,
         patientGender,
         situation,
@@ -53,8 +53,8 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
