@@ -2,45 +2,84 @@
 
 import React from 'react';
 import { useSession } from "next-auth/react";
+import { TriageResult } from '../utils/triage';
 
 interface PatientSummaryProps {
   data?: any;
+  timeline?: { time: string; msg: string }[];
+  triage?: TriageResult;
 }
 
-export default function PatientSummary({ data }: PatientSummaryProps) {
+export default function PatientSummary({ data, timeline = [], triage }: PatientSummaryProps) {
   const { data: session } = useSession();
-  // If no data provided, render nothing or placeholder.
-  // We assume data is always provided when this component is mounted in the current workflow.
   const d = data || {};
+  const v = d.vitals || {};
+
+  // Build SBAR text
+  const situationText = `환자는 ${Object.entries(d.complaints || {})
+    .filter(([_, arr]) => (arr as string[]).length > 0)
+    .map(([cat, arr]) => `${cat}(${(arr as string[]).join(", ")})`)
+    .join(" 및 ")}를 호소함. ${d.customComplaint ? `기타 증상: ${d.customComplaint}` : ""}`;
+
+  const backgroundText = `과거력: ${d.sample?.P || "없음"}\n복용약: ${d.sample?.M || "없음"}\n알레르기: ${d.sample?.A || "없음"}\n마지막 정상 상태/식사: ${d.sample?.L || "미상"}\n사고경위: ${d.sample?.E || "미상"}`;
+
+  const assessmentText = `활력징후: BP ${v.sbp || "?"}/${v.dbp || "?"}, HR ${v.hr || "?"}, RR ${v.rr || "?"}, SpO₂ ${v.spo2 || "?"}%\n의식: ${d.primary?.consciousness || "미상"}\n중증도 분류: ${triage?.label || "미평가"}\n분류 근거: ${triage?.reasons?.join(" + ") || "없음"}`;
+
+  const recText = triage?.recommendation || "응급실 진료 필요. 이송 전 병원 수용 가능 여부 확인 필요.";
+
+  const getLevelColor = (level: number) => {
+    switch(level) {
+      case 1: return "var(--red-primary)";
+      case 2: return "#f97316"; // orange
+      case 3: return "#eab308"; // yellow
+      default: return "#22c55e"; // green
+    }
+  };
 
   return (
-    <div className="card" style={{ borderLeft: '4px solid var(--red-primary)', backgroundColor: '#f8fafc' }}>
-      <div className="flex justify-between items-center mb-4 pb-4 border-b" style={{ borderColor: 'var(--border-color)' }}>
+    <div className="card" style={{ borderLeft: `8px solid ${triage ? getLevelColor(triage.level) : 'var(--blue-primary)'}`, backgroundColor: '#f8fafc' }}>
+      <div className="flex justify-between items-center mb-4 pb-4 border-b" style={{ borderColor: 'var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
         <h2 className="section-title" style={{ marginBottom: 0 }}>
-          <i className="ri-pass-valid-line text-blue-dark"></i> 구급대 인계 요약 및 중증도 평가 결과
+          <i className="ri-pass-valid-line text-blue-dark"></i> 구급대 인계 요약 (SBAR)
         </h2>
-        <span className="badge danger" style={{ fontSize: '1rem', padding: '0.4rem 1rem' }}>{d.preKtas || "Pre-KTAS 평가 완료"}</span>
+        {triage && (
+          <span className="badge" style={{ fontSize: '1rem', padding: '0.4rem 1rem', background: getLevelColor(triage.level), color: 'white' }}>
+            {triage.label}
+          </span>
+        )}
       </div>
-      
-      <div className="grid-3 mb-4">
-        <div>
-          <p className="text-sm text-gray font-bold mb-1">Situation & Background</p>
-          <p className="font-bold text-lg text-blue-dark mb-2">{d.situation || "증상 미입력"}</p>
-          <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{d.background || "배경 정보 미입력"}</p>
+
+      <div className="grid-2 mb-6" style={{ gap: '2rem' }}>
+        {/* SBAR Output */}
+        <div style={{ background: '#fff', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <h3 className="text-sm font-bold text-blue-dark mb-2"><i className="ri-file-text-line"></i> 병원 연락용 SBAR</h3>
+          <div style={{ fontSize: '0.875rem', lineHeight: '1.6', color: '#333', whiteSpace: 'pre-wrap' }}>
+            <p className="font-bold text-gray mt-2">[S] Situation</p>
+            <p>{situationText}</p>
+            
+            <p className="font-bold text-gray mt-2">[B] Background</p>
+            <p>{backgroundText}</p>
+            
+            <p className="font-bold text-gray mt-2">[A] Assessment</p>
+            <p>{assessmentText}</p>
+            
+            <p className="font-bold text-gray mt-2">[R] Recommendation</p>
+            <p>{recText}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm text-gray font-bold mb-1">Assessment (활력징후)</p>
-          <p className="text-sm"><span className="text-gray inline-block w-12">BP:</span> <strong className="text-red-primary">{d.bp || "-"}</strong> mmHg</p>
-          <p className="text-sm"><span className="text-gray inline-block w-12">HR:</span> <strong>{d.hr || "-"}</strong> 회/분</p>
-          <p className="text-sm"><span className="text-gray inline-block w-12">SpO₂:</span> <strong className="text-red-primary">{d.spo2 || "-"}</strong> %</p>
-          <p className="text-sm mt-1">NRS: {d.nrs || "-"} 점</p>
-        </div>
-        <div style={{ backgroundColor: '#fff', padding: '1rem', borderRadius: '8px', border: '1px solid var(--red-primary)' }}>
-          <p className="text-sm text-gray font-bold mb-1">AI 도출 이송 조건</p>
-          {/* Mock logic based on input or static for prototype */}
-          <p className="mb-1"><span className="text-gray">요청 자원:</span> <strong>{d.recommendation || "없음"}</strong></p>
-          <p className="mb-1"><span className="text-gray">의심 질환:</span> <strong className="text-red-dark">중증 응급 의심</strong></p>
-          <p><span className="text-gray">권장 시간:</span> 발생 후 골든타임 내</p>
+
+        {/* Timeline Log */}
+        <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '8px', color: '#10b981', fontFamily: 'monospace', fontSize: '0.8rem', height: '100%', maxHeight: '400px', overflowY: 'auto' }}>
+          <h3 className="text-sm font-bold text-white mb-2"><i className="ri-time-line"></i> 시간별 상태 변화 로그</h3>
+          {timeline.length === 0 ? (
+            <p className="text-gray">기록된 로그가 없습니다.</p>
+          ) : (
+            timeline.map((log, i) => (
+              <div key={i} style={{ marginBottom: '0.2rem' }}>
+                <span className="text-gray">[{log.time}]</span> {log.msg}
+              </div>
+            ))
+          )}
         </div>
       </div>
       

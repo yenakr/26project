@@ -1,69 +1,126 @@
 "use client";
 
 import React, { useState } from 'react';
-import PatientSummary from '@/components/PatientSummary';
 import SBARForm from '@/components/SBARForm';
+import PatientSummary from '@/components/PatientSummary';
 import HospitalDashboard from '@/components/HospitalDashboard';
 import DiseaseTabs from '@/components/DiseaseTabs';
-import RecordsHistory from '@/components/RecordsHistory';
 import { useSession, signOut } from "next-auth/react";
 import Link from 'next/link';
 
+// Imports for new EMS Logic
+import { TriageData, TriageResult, calculateSeverity } from '@/utils/triage';
+import { RecommendedHospital, rankHospitals, mockHospitals } from '@/utils/hospitals';
+
 export default function Home() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState('new'); // 'new', 'records', 'guidelines'
-  const [assessmentData, setAssessmentData] = useState(null);
+  const [activeTab, setActiveTab] = useState('new');
+  
+  // States for V2 Flow
+  const [assessmentData, setAssessmentData] = useState<TriageData | null>(null);
+  const [timelineLog, setTimelineLog] = useState<{time: string, msg: string}[]>([]);
+  const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
+  const [rankedHospitals, setRankedHospitals] = useState<RecommendedHospital[]>([]);
 
-  const handleAssess = (data: any) => {
+  const handleAssess = (data: TriageData, timeline: {time: string, msg: string}[]) => {
+    // 1. Calculate Severity
+    const triage = calculateSeverity(data);
+    
+    // 2. Rank Hospitals
+    const hospitals = rankHospitals(data, triage, mockHospitals);
+
+    // 3. Update States
     setAssessmentData(data);
+    setTimelineLog(timeline);
+    setTriageResult(triage);
+    setRankedHospitals(hospitals);
+  };
+
+  const resetFlow = () => {
+    setAssessmentData(null);
+    setTimelineLog([]);
+    setTriageResult(null);
+    setRankedHospitals([]);
   };
 
   return (
-    <main className="container">
-      <header className="header flex justify-between items-center flex-wrap gap-4">
-        <div className="logo-area flex items-center gap-2">
-          <div className="logo-icon" style={{ backgroundColor: 'var(--blue-primary)' }}>
-            <i className="ri-hospital-fill"></i>
+    <div className="container">
+      <header className="header">
+        <div className="logo-area">
+          <div className="logo-icon">
+            <i className="ri-heart-pulse-fill"></i>
           </div>
           <div className="title">
-            <h1 style={{ color: 'var(--blue-primary)' }}>CODE BLUE</h1>
-            <p>중증응급환자 이송 지원 시스템</p>
+            <h1>CODE BLUE</h1>
+            <p>병원 전 응급환자 인계 및 수용 정보 프로토타입</p>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
           {session ? (
-            <div className="text-right text-sm">
-              <p className="font-bold">{session.user?.name} 구급대원</p>
-              <button onClick={() => signOut()} className="text-red-primary text-xs underline">로그아웃</button>
-            </div>
+            <>
+              <div className="text-sm">
+                <span className="font-bold text-blue-dark">{session.user?.name || '구급대원'}</span> 님
+                <span className="text-gray ml-2">({session.user?.email})</span>
+              </div>
+              <button 
+                onClick={() => signOut()} 
+                className="btn" 
+                style={{ background: '#f1f5f9', color: '#475569', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                로그아웃
+              </button>
+            </>
           ) : (
-            <Link href="/login" className="btn" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', border: '1px solid var(--border-color)' }}>
-              로그인
+            <Link href="/login" className="btn btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+              로그인 / 등록
             </Link>
           )}
-          <div className="text-right">
-            <span className="badge primary">119 구급대 전용</span>
-          </div>
         </div>
       </header>
 
-      {/* Main Navigation Tabs */}
-      <div className="flex mb-6" style={{ borderBottom: '2px solid var(--border-color)', overflowX: 'auto' }}>
+      <div className="flex gap-2 mb-6" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', overflowX: 'auto', whiteSpace: 'nowrap' }}>
         <button 
           className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('new'); setAssessmentData(null); }}
+          style={{ 
+            padding: '0.5rem 1.5rem', 
+            background: activeTab === 'new' ? 'var(--blue-primary)' : 'transparent', 
+            color: activeTab === 'new' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderRadius: '20px',
+            fontWeight: activeTab === 'new' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+          onClick={() => { setActiveTab('new'); resetFlow(); }}
         >
-          <i className="ri-user-add-line"></i> 새 환자 평가
+          <i className="ri-add-line"></i> 새 환자 평가
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'records' ? 'active' : ''}`}
-          onClick={() => setActiveTab('records')}
+          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+          style={{ 
+            padding: '0.5rem 1.5rem', 
+            background: activeTab === 'history' ? 'var(--blue-primary)' : 'transparent', 
+            color: activeTab === 'history' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderRadius: '20px',
+            fontWeight: activeTab === 'history' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+          onClick={() => setActiveTab('history')}
         >
           <i className="ri-history-line"></i> 내 인계 기록
         </button>
         <button 
           className={`tab-btn ${activeTab === 'guidelines' ? 'active' : ''}`}
+          style={{ 
+            padding: '0.5rem 1.5rem', 
+            background: activeTab === 'guidelines' ? 'var(--blue-primary)' : 'transparent', 
+            color: activeTab === 'guidelines' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderRadius: '20px',
+            fontWeight: activeTab === 'guidelines' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
           onClick={() => setActiveTab('guidelines')}
         >
           <i className="ri-book-read-line"></i> 질환별 이송 지침
@@ -74,20 +131,18 @@ export default function Home() {
         
         {activeTab === 'new' && (
           !assessmentData ? (
-            // 초기 화면: SBAR 폼만 노출
             <section className="fade-in" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
               <SBARForm onAssess={handleAssess} />
             </section>
           ) : (
-            // 평가 완료 화면: 전체 정보 노출
             <div className="fade-in">
               <section className="mb-6">
-                <PatientSummary data={assessmentData} />
+                <PatientSummary data={assessmentData} timeline={timelineLog} triage={triageResult!} />
               </section>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
                 <section>
-                  <HospitalDashboard />
+                  <HospitalDashboard hospitals={rankedHospitals} />
                 </section>
                 <section>
                   <DiseaseTabs />
@@ -98,53 +153,31 @@ export default function Home() {
                 <button 
                   className="btn" 
                   style={{ backgroundColor: '#e2e8f0', color: '#475569' }} 
-                  onClick={() => setAssessmentData(null)}
+                  onClick={resetFlow}
                 >
-                  <i className="ri-refresh-line"></i> 초기화 및 새 환자 입력
+                  <i className="ri-arrow-go-back-line"></i> 새로운 환자 평가하기
                 </button>
               </div>
             </div>
           )
         )}
 
-        {activeTab === 'records' && (
-          <section className="fade-in" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-            <RecordsHistory />
+        {activeTab === 'history' && (
+          <section className="fade-in card">
+            <h2 className="section-title"><i className="ri-history-line text-blue-primary"></i> 내 인계 기록</h2>
+            <div className="p-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
+              <p className="text-gray mb-2">과거 평가 기록을 조회하는 기능은 DB 연결 후 제공됩니다.</p>
+              <button className="btn btn-primary btn-sm"><i className="ri-refresh-line"></i> 기록 동기화</button>
+            </div>
           </section>
         )}
 
         {activeTab === 'guidelines' && (
-          <section className="fade-in" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+          <section className="fade-in">
             <DiseaseTabs />
           </section>
         )}
-
       </div>
-      
-      <style dangerouslySetInnerHTML={{__html: `
-        .tab-btn {
-          padding: 1rem 1.5rem;
-          background: none;
-          border: none;
-          color: var(--text-secondary);
-          font-weight: 600;
-          font-size: 1rem;
-          border-bottom: 3px solid transparent;
-          cursor: pointer;
-          transition: all 0.2s;
-          white-space: nowrap;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .tab-btn:hover {
-          color: var(--blue-primary);
-        }
-        .tab-btn.active {
-          color: var(--blue-primary);
-          border-bottom-color: var(--blue-primary);
-        }
-      `}} />
-    </main>
+    </div>
   );
 }
