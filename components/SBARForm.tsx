@@ -153,8 +153,9 @@ export default function SBARForm({ onAssess }: SBARFormProps) {
       style={{
         background: isSelected ? (danger ? 'var(--red-primary)' : 'var(--blue-dark)') : '#f8fafc',
         color: isSelected ? '#fff' : '#475569',
-        border: `1px solid ${isSelected ? (danger ? 'var(--red-primary)' : 'var(--blue-dark)') : '#e2e8f0'}`,
-        cursor: 'pointer', fontSize: '0.8rem', padding: '0.4rem 0.8rem'
+        border: `1px solid ${isSelected ? (danger ? 'var(--red-primary)' : 'var(--blue-dark)') : '#cbd5e1'}`,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap'
       }}
       onClick={onClick}
     >
