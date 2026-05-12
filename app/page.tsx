@@ -45,17 +45,22 @@ export default function Home() {
     setTriageResult(triage);
 
     // Calculate ranking in background but don't force showHospitalList
-    if (triage.level < 4 || (data.complaints["심정지/무반응"]?.length ?? 0) > 0) {
-      const regionHospitals = mockHospitals.filter(h => h.sido === extData.region.sido);
+    if (triage && (triage.level < 4 || (data?.complaints?.["심정지/무반응"]?.length ?? 0) > 0)) {
+      const regionHospitals = Array.isArray(mockHospitals) ? mockHospitals.filter(h => h.sido === extData?.region?.sido) : [];
       setRankedHospitals(rankHospitals(data, triage, regionHospitals));
+    } else {
+      setRankedHospitals([]);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'history' && session) {
+    if (activeTab === 'history' && session?.user?.id) {
       fetch('/api/records')
-        .then(res => res.json())
-        .then(data => setHistoryRecords(data))
+        .then(res => res.json().catch(() => ({ success: false, records: [] })))
+        .then(data => {
+          const safeRecs = Array.isArray(data?.records) ? data.records : (Array.isArray(data) ? data : []);
+          setHistoryRecords(safeRecs);
+        })
         .catch(err => console.error(err));
     }
   }, [activeTab, session]);
@@ -186,9 +191,9 @@ export default function Home() {
                   </span>
                 </div>
                 <p className="text-sm font-bold text-gray mt-3 mb-1">분류 근거</p>
-                <p className="text-sm" style={{ color: '#333' }}>{triageResult.reasons.join(" + ") || "입력된 위협 요소 없음"}</p>
+                <p className="text-sm" style={{ color: '#333' }}>{Array.isArray(triageResult?.reasons) ? triageResult.reasons.join(" + ") : "입력된 위협 요소 없음"}</p>
                 <p className="text-sm font-bold text-gray mt-3 mb-1">권고 사항</p>
-                <p className="text-sm" style={{ color: 'var(--blue-dark)' }}>{triageResult.recommendation}</p>
+                <p className="text-sm" style={{ color: 'var(--blue-dark)' }}>{triageResult?.recommendation || "상태 모니터링 필요"}</p>
               </div>
             )}
 
@@ -205,20 +210,20 @@ export default function Home() {
             )}
 
             {/* Live Hospital Dashboard - Only shown when explicit button clicked or completed */}
-            {(showHospitalList || isCompleted) && triageResult && (triageResult.level < 4 || (assessmentData?.complaints["심정지/무반응"]?.length ?? 0) > 0) && (
+            {(showHospitalList || isCompleted) && triageResult && (triageResult.level < 4 || (assessmentData?.complaints?.["심정지/무반응"]?.length ?? 0) > 0) && (
               <div className="flex flex-col gap-2 mb-4">
                 <div className="flex justify-between items-center px-1">
                   <h3 className="section-title mb-0" style={{ fontSize: '1rem' }}>병원 수용 가능 현황</h3>
                   {!isCompleted && (
-                    <button onClick={() => setShowHospitalList(false)} className="text-xs text-gray underline">목록 닫기</button>
+                    <button onClick={() => setShowHospitalList(false)} className="text-xs text-gray underline border-none bg-transparent cursor-pointer">목록 닫기</button>
                   )}
                 </div>
-                <HospitalDashboard hospitals={rankedHospitals} />
+                <HospitalDashboard hospitals={Array.isArray(rankedHospitals) ? rankedHospitals : []} />
               </div>
             )}
 
             {/* Live Timeline Log */}
-            {timelineLog.length > 0 && (
+            {Array.isArray(timelineLog) && timelineLog.length > 0 && (
               <div className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: isTimelineExpanded ? '500px' : '300px', marginBottom: '1rem', transition: 'height 0.3s' }}>
                 <div style={{ padding: '1rem', background: '#f8fafc', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 className="font-bold" style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

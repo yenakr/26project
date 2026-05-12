@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { TriageData } from '../utils/triage';
 import { AuditLog, createLogId, getCurrentTimeStrings } from '../utils/auditLog';
+import { normalizeEmergencyRecord, defaultFormData, safeParse } from '../utils/normalize';
 
 export type DispatchTimelineAction = (action: 'cancel' | 'restore', logId: string) => void;
 
@@ -26,13 +27,13 @@ const CHIEF_COMPLAINT_OPTIONS: Record<string, string[]> = {
 
 export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormProps) {
   // Form States
-  const [scene, setScene] = useState({ safety: "", risks: [] as string[], patients: "", support: [] as string[], access: "" });
-  const [primary, setPrimary] = useState({ consciousness: "", breathing: "", circulation: "", actions: [] as string[] });
+  const [scene, setScene] = useState(defaultFormData.scene);
+  const [primary, setPrimary] = useState(defaultFormData.primary);
   const [complaints, setComplaints] = useState<Record<string, string[]>>(Object.keys(CHIEF_COMPLAINT_OPTIONS).reduce((acc, key) => ({ ...acc, [key]: [] }), {}));
   const [openComplaintCategory, setOpenComplaintCategory] = useState<string | null>(null);
   const [customComplaint, setCustomComplaint] = useState("");
-  const [sample, setSample] = useState({ S: "", A: "", M: "", P: "", L: "", E: "" });
-  const [vitals, setVitals] = useState({ sbp: "", dbp: "", hr: "", spo2: "", nrs: "", bt: "", bst: "", rr: "" });
+  const [sample, setSample] = useState(defaultFormData.sample);
+  const [vitals, setVitals] = useState(defaultFormData.vitals);
 
   // Audit Logs
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -64,10 +65,49 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
   };
 
   useEffect(() => {
+    // 1. Try to load from draft (Safe Parsing)
+    if (typeof window !== 'undefined') {
+      const draft = safeParse(window.sessionStorage.getItem('codeblue_draft'));
+      if (draft) {
+        const norm = normalizeEmergencyRecord(draft);
+        setScene(norm.scene);
+        setPrimary(norm.primary);
+        if (norm.complaints && Object.keys(norm.complaints).length > 0) setComplaints(norm.complaints);
+        setVitals(norm.vitals);
+        setSample(norm.sample);
+        setCustomComplaint(norm.customComplaint);
+        setAuditLogs(norm.auditLogs);
+      }
+    }
+    
     // Initial sync
     triggerUpdate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Save draft to sessionStorage periodically
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const draft = { scene, primary, complaints, vitals, sample, customComplaint, auditLogs };
+      window.sessionStorage.setItem('codeblue_draft', JSON.stringify(draft));
+    }
+  }, [scene, primary, complaints, vitals, sample, customComplaint, auditLogs]);
+
+  const resetLocalData = () => {
+    if (confirm("현재 입력 중인 데이터를 초기화하고 화면을 복구하시겠습니까?")) {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('codeblue_draft');
+      }
+      setScene(defaultFormData.scene);
+      setPrimary(defaultFormData.primary);
+      setComplaints(Object.keys(CHIEF_COMPLAINT_OPTIONS).reduce((acc, key) => ({ ...acc, [key]: [] }), {}));
+      setVitals(defaultFormData.vitals);
+      setSample(defaultFormData.sample);
+      setCustomComplaint("");
+      setAuditLogs([]);
+      setTimeout(() => triggerUpdate([]), 0);
+    }
+  };
 
   // Log region changes from outside
   const [lastLoggedRegion, setLastLoggedRegion] = useState(region);
@@ -360,6 +400,9 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
 
     // 3. ALWAYS proceed to the next step (non-blocking)
     setAuditLogs(newLogs);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('codeblue_draft');
+    }
     setTimeout(() => {
       triggerUpdate(newLogs);
       onComplete();
@@ -378,6 +421,15 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
 
   return (
     <div style={{ position: 'relative' }}>
+      <div className="flex justify-end mb-4">
+        <button 
+          onClick={resetLocalData}
+          className="text-xs text-gray-500 hover:text-red-500 underline flex items-center gap-1"
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+        >
+          <i className="ri-refresh-line"></i> 화면 복구 (데이터 초기화)
+        </button>
+      </div>
       
       {/* Step 1: Scene Size-up */}
       <div id="step-1" className="card">
@@ -386,14 +438,14 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
         <div className="sub-card">
           <div className="section-header"><div><h3>현장 안전 확인</h3></div></div>
           <div className="chip-grid">
-            {["안전", "위험", "판단 어려움"].map(opt => renderBtn('scene.safety', 'single', '현장 안전 확인', opt, scene.safety === opt, opt === '위험'))}
+            {["안전", "위험", "판단 어려움"].map(opt => renderBtn('scene.safety', 'single', '현장 안전 확인', opt, scene?.safety === opt, opt === '위험'))}
           </div>
         </div>
 
         <div className="sub-card">
           <div className="section-header"><div><h3>위험 요인 (다중선택)</h3></div></div>
           <div className="chip-grid">
-            {["교통사고", "화재/연기", "가스/화학물질", "폭력/자해 위험", "감염위험", "전기 위험", "추락/붕괴 위험"].map(opt => renderBtn('scene.risks', 'multi', '위험요인', opt, scene.risks.includes(opt), true))}
+            {["교통사고", "화재/연기", "가스/화학물질", "폭력/자해 위험", "감염위험", "전기 위험", "추락/붕괴 위험"].map(opt => renderBtn('scene.risks', 'multi', '위험요인', opt, Array.isArray(scene?.risks) && scene.risks.includes(opt), true))}
           </div>
         </div>
 
@@ -401,13 +453,13 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
           <div className="sub-card mb-0">
             <div className="section-header"><div><h3>환자 수</h3></div></div>
             <div className="chip-grid">
-              {["1명", "2-4명", "5명 이상", "다수 사상자 의심"].map(opt => renderBtn('scene.patients', 'single', '환자 수', opt, scene.patients === opt, opt.includes('다수')))}
+              {["1명", "2-4명", "5명 이상", "다수 사상자 의심"].map(opt => renderBtn('scene.patients', 'single', '환자 수', opt, scene?.patients === opt, opt.includes('다수')))}
             </div>
           </div>
           <div className="sub-card mb-0">
             <div className="section-header"><div><h3>추가 지원 (다중선택)</h3></div></div>
             <div className="chip-grid">
-              {["필요 없음", "추가 구급차", "구조대", "경찰", "의료지도", "소방지원"].map(opt => renderBtn('scene.support', 'multi', '추가 지원', opt, scene.support.includes(opt)))}
+              {["필요 없음", "추가 구급차", "구조대", "경찰", "의료지도", "소방지원"].map(opt => renderBtn('scene.support', 'multi', '추가 지원', opt, Array.isArray(scene?.support) && scene.support.includes(opt)))}
             </div>
           </div>
         </div>
@@ -423,7 +475,7 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
             <div><h3>의식 상태 (Mental Status)</h3></div>
           </div>
           <div className="chip-grid">
-            {["명료", "혼돈/졸림", "통증에 반응", "무반응"].map(opt => renderBtn('primary.consciousness', 'single', '의식 상태', opt, primary.consciousness === opt, opt === '무반응'))}
+            {["명료", "혼돈/졸림", "통증에 반응", "무반응"].map(opt => renderBtn('primary.consciousness', 'single', '의식 상태', opt, primary?.consciousness === opt, opt === '무반응'))}
           </div>
         </div>
 
@@ -433,7 +485,7 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
             <div><h3>호흡 상태 (Breathing)</h3></div>
           </div>
           <div className="chip-grid">
-            {["정상", "호흡곤란", "비정상 호흡/gasping", "무호흡"].map(opt => renderBtn('primary.breathing', 'single', '호흡 상태', opt, primary.breathing === opt, opt.includes('무호흡') || opt.includes('비정상')))}
+            {["정상", "호흡곤란", "비정상 호흡/gasping", "무호흡"].map(opt => renderBtn('primary.breathing', 'single', '호흡 상태', opt, primary?.breathing === opt, opt.includes('무호흡') || opt.includes('비정상')))}
           </div>
         </div>
 
@@ -443,7 +495,7 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
             <div><h3>순환 상태 (Circulation)</h3></div>
           </div>
           <div className="chip-grid">
-            {["맥박 있음", "맥박 약함", "맥박 없음", "대량출혈 있음"].map(opt => renderBtn('primary.circulation', 'single', '순환 상태', opt, primary.circulation === opt, opt === '맥박 없음' || opt.includes('대량출혈')))}
+            {["맥박 있음", "맥박 약함", "맥박 없음", "대량출혈 있음"].map(opt => renderBtn('primary.circulation', 'single', '순환 상태', opt, primary?.circulation === opt, opt === '맥박 없음' || opt.includes('대량출혈')))}
           </div>
         </div>
 
@@ -453,7 +505,7 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
             <div><h3>즉시 처치 상황 (다중선택)</h3></div>
           </div>
           <div className="chip-grid">
-            {["CPR 진행 중", "AED 적용 중", "AED shock 시행", "산소 투여 중", "지혈 중", "기도확보 필요", "경추고정 필요", "IV/수액 필요", "혈당 측정 필요"].map(opt => renderBtn('primary.actions', 'multi', '즉시 처치 상황', opt, primary.actions.includes(opt), opt.includes("CPR") || opt.includes("AED") || opt.includes("기도확보")))}
+            {["CPR 진행 중", "AED 적용 중", "AED shock 시행", "산소 투여 중", "지혈 중", "기도확보 필요", "경추고정 필요", "IV/수액 필요", "혈당 측정 필요"].map(opt => renderBtn('primary.actions', 'multi', '즉시 처치 상황', opt, Array.isArray(primary?.actions) && primary.actions.includes(opt), opt.includes("CPR") || opt.includes("AED") || opt.includes("기도확보")))}
           </div>
         </div>
       </div>
@@ -482,7 +534,7 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
                 {isOpen && (
                   <div style={{ padding: '1rem', background: '#fff', borderTop: `1px solid var(--border-color)` }}>
                     <div className="chip-grid">
-                      {options.map(opt => renderBtn(`complaints.${category}`, 'multi', `${category} 세부증상`, opt, complaints[category].includes(opt)))}
+                      {options.map(opt => renderBtn(`complaints.${category}`, 'multi', `${category} 세부증상`, opt, Array.isArray(complaints?.[category]) && complaints[category].includes(opt)))}
                     </div>
                   </div>
                 )}

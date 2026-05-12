@@ -21,16 +21,28 @@ export default function HistoryPage() {
   const fetchRecords = async () => {
     try {
       const res = await fetch('/api/records');
-      const data = await res.json();
-      setRecords(data);
+      const data = await res.json().catch(() => ({ records: [] }));
+      
+      if (!res.ok) {
+        throw new Error(data?.error || "기록을 불러오지 못했습니다.");
+      }
+      
+      const safeRecords = Array.isArray(data) ? data : (Array.isArray(data.records) ? data.records : []);
+      setRecords(safeRecords);
     } catch (error) {
       console.error("FETCH_ERROR", error);
+      setRecords([]);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="p-8 text-center">기록을 불러오는 중...</div>;
+  if (loading) return (
+    <div className="container text-center p-20">
+      <i className="ri-loader-4-line ri-spin text-4xl text-blue-primary"></i>
+      <p className="mt-4 text-gray">기록을 불러오는 중입니다...</p>
+    </div>
+  );
 
   return (
     <div className="container" style={{ maxWidth: '800px', marginTop: '2rem' }}>
