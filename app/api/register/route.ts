@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  console.log("DEBUG: Current DATABASE_URL from process.env:", process.env.DATABASE_URL);
   try {
     const body = await request.json();
     const { email, name, password } = body;
