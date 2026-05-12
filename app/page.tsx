@@ -27,10 +27,13 @@ export default function Home() {
   const [rankedHospitals, setRankedHospitals] = useState<RecommendedHospital[]>([]);
 
   // Live update handler from Form
-  const handleLiveUpdate = (data: TriageData, extData: any, timeline: {time: string, msg: string}[]) => {
+  const [dispatchTimelineAction, setDispatchTimelineAction] = useState<any>(null);
+
+  const handleLiveUpdate = (data: TriageData, extData: any, timeline: any[], dispatchFn: any) => {
     setAssessmentData(data);
     setExtendedData(extData);
     setTimelineLog(timeline);
+    setDispatchTimelineAction(() => dispatchFn);
     
     // Live Triage & Hospital Ranking
     const triage = calculateSeverity(data);
@@ -175,12 +178,32 @@ export default function Home() {
                 </div>
                 <div style={{ padding: '1rem', overflowY: 'auto', flex: 1, backgroundColor: '#fff' }}>
                   <div className="timeline-list">
-                    {timelineLog.map((log, i) => (
-                      <div key={i} className="timeline-item">
-                        <span className="time-badge">{log.time}</span>
-                        <span className="timeline-text">{log.msg}</span>
-                      </div>
-                    ))}
+                    {timelineLog.map((log: any) => {
+                      const isCancelled = log.status === 'cancelled' || log.status === 'replaced';
+                      return (
+                        <div key={log.id} className={`timeline-item ${isCancelled ? 'cancelled' : ''}`}>
+                          <span className="time-badge">{log.displayTime}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <span className="timeline-text">
+                                {log.label}: {log.value}
+                              </span>
+                              <div className="timeline-actions">
+                                {!isCancelled && log.source === 'user' && dispatchTimelineAction && (
+                                  <button className="timeline-btn" onClick={() => dispatchTimelineAction('cancel', log.id)}>취소</button>
+                                )}
+                                {isCancelled && log.source === 'user' && dispatchTimelineAction && (
+                                  <button className="timeline-btn restore" onClick={() => dispatchTimelineAction('restore', log.id)}>복원</button>
+                                )}
+                              </div>
+                            </div>
+                            {isCancelled && log.cancelledAt && (
+                              <span className="cancelled-badge mt-1">취소됨 {log.cancelledAt.substring(11, 19)}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

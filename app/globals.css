@@ -413,6 +413,57 @@ button {
 .timeline-text {
   color: #334155;
   word-break: keep-all;
+  flex: 1;
+}
+
+.timeline-item.cancelled .timeline-text {
+  color: #94A3B8;
+  text-decoration: line-through;
+}
+
+.cancelled-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #F1F5F9;
+  color: #64748B;
+  display: inline-block;
+  width: fit-content;
+}
+
+.timeline-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.timeline-item:hover .timeline-actions {
+  opacity: 1;
+}
+
+.timeline-btn {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  cursor: pointer;
+}
+
+.timeline-btn:hover {
+  background: #e2e8f0;
+}
+
+.timeline-btn.restore {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.timeline-btn.restore:hover {
+  background: #dcfce7;
 }
 
 @media (max-width: 768px) {
