@@ -111,7 +111,7 @@ export default function Home() {
       </div>
 
       {activeTab === 'new' && (
-        <div className="dashboard-grid">
+        <div className="dashboard-layout">
           {/* Left Column: Input Form (Hidden on Mobile when Completed) */}
           <div className="left-col" style={{ display: isCompleted ? 'none' : 'block' }}>
             <SBARForm 
@@ -172,11 +172,11 @@ export default function Home() {
                   </button>
                 </div>
                 <div style={{ padding: '1rem', overflowY: 'auto', flex: 1, backgroundColor: '#fff' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="timeline-list">
                     {timelineLog.map((log, i) => (
-                      <div key={i} className="flex gap-2 items-start">
-                        <span className="badge-tag" style={{ background: '#e2e8f0', color: '#475569', fontSize: '0.7rem' }}>{log.time}</span>
-                        <span className="text-sm" style={{ color: '#333' }}>{log.msg}</span>
+                      <div key={i} className="timeline-item">
+                        <span className="time-badge">{log.time}</span>
+                        <span className="timeline-text">{log.msg}</span>
                       </div>
                     ))}
                   </div>

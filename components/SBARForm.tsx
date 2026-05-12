@@ -138,29 +138,45 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
         <h2 className="section-title"><i className="ri-map-pin-line text-blue-primary"></i> 1. 현장 상황 확인</h2>
         
         <div className="sub-card">
-          <p className="text-sm font-bold mb-2">현장 안전 확인</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="section-header">
+            <div>
+              <h3>현장 안전 확인</h3>
+            </div>
+          </div>
+          <div className="chip-grid">
             {["안전", "위험", "판단 어려움"].map(opt => renderBtn(opt, scene.safety === opt, () => handleChip(setScene, 'safety', opt, '현장 안전'), opt === '위험'))}
           </div>
         </div>
 
         <div className="sub-card">
-          <p className="text-sm font-bold mb-2">위험 요인 (다중선택)</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="section-header">
+            <div>
+              <h3>위험 요인 (다중선택)</h3>
+            </div>
+          </div>
+          <div className="chip-grid">
             {["교통사고", "화재/연기", "가스/화학물질", "폭력/자해 위험", "감염위험", "전기 위험", "추락/붕괴 위험"].map(opt => renderBtn(opt, scene.risks.includes(opt), () => handleChip(setScene, 'risks', opt, '위험요인', true), true))}
           </div>
         </div>
 
         <div className="grid-2">
           <div className="sub-card mb-0">
-            <p className="text-sm font-bold mb-2">환자 수</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="section-header">
+              <div>
+                <h3>환자 수</h3>
+              </div>
+            </div>
+            <div className="chip-grid">
               {["1명", "2-4명", "5명 이상", "다수 사상자 의심"].map(opt => renderBtn(opt, scene.patients === opt, () => handleChip(setScene, 'patients', opt, '환자 수'), opt.includes('다수')))}
             </div>
           </div>
           <div className="sub-card mb-0">
-            <p className="text-sm font-bold mb-2">추가 지원 (다중선택)</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="section-header">
+              <div>
+                <h3>추가 지원 (다중선택)</h3>
+              </div>
+            </div>
+            <div className="chip-grid">
               {["필요 없음", "추가 구급차", "구조대", "경찰", "의료지도", "소방지원"].map(opt => renderBtn(opt, scene.support.includes(opt), () => handleChip(setScene, 'support', opt, '추가 지원', true)))}
             </div>
           </div>
@@ -171,38 +187,53 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
       <div id="step-2" className="card">
         <h2 className="section-title"><i className="ri-stethoscope-line text-blue-primary"></i> 2. 환자 1차 평가 (Primary Survey)</h2>
         
-        <div className="sub-card flex gap-4 items-center">
-          <i className="ri-brain-line text-blue-primary" style={{ fontSize: '2rem' }}></i>
-          <div style={{ flex: 1 }}>
-            <p className="text-sm font-bold mb-2">의식 상태 (Mental Status)</p>
-            <div className="flex flex-wrap gap-2">
-              {["명료", "혼돈/졸림", "통증에 반응", "무반응"].map(opt => renderBtn(opt, primary.consciousness === opt, () => handleChip(setPrimary, 'consciousness', opt, '의식 상태'), opt === '무반응'))}
+        <div className="sub-card">
+          <div className="section-header">
+            <div className="section-icon"><i className="ri-brain-line text-blue-primary" style={{ fontSize: '1.5rem' }}></i></div>
+            <div>
+              <h3>의식 상태 (Mental Status)</h3>
+              <p>환자 반응 수준을 선택하세요.</p>
             </div>
           </div>
-        </div>
-
-        <div className="sub-card flex gap-4 items-center">
-          <i className="ri-lungs-line text-blue-primary" style={{ fontSize: '2rem' }}></i>
-          <div style={{ flex: 1 }}>
-            <p className="text-sm font-bold mb-2">호흡 상태 (Breathing)</p>
-            <div className="flex flex-wrap gap-2">
-              {["정상", "호흡곤란", "비정상 호흡/gasping", "무호흡"].map(opt => renderBtn(opt, primary.breathing === opt, () => handleChip(setPrimary, 'breathing', opt, '호흡 상태'), opt.includes('무호흡') || opt.includes('비정상')))}
-            </div>
-          </div>
-        </div>
-
-        <div className="sub-card flex gap-4 items-center">
-          <i className="ri-heart-pulse-line text-red-primary" style={{ fontSize: '2rem' }}></i>
-          <div style={{ flex: 1 }}>
-            <p className="text-sm font-bold mb-2">순환 상태 (Circulation)</p>
-            <div className="flex flex-wrap gap-2">
-              {["맥박 있음", "맥박 약함", "맥박 없음", "대량출혈 있음"].map(opt => renderBtn(opt, primary.circulation === opt, () => handleChip(setPrimary, 'circulation', opt, '순환 상태'), opt === '맥박 없음' || opt.includes('대량출혈')))}
-            </div>
+          <div className="chip-grid">
+            {["명료", "혼돈/졸림", "통증에 반응", "무반응"].map(opt => renderBtn(opt, primary.consciousness === opt, () => handleChip(setPrimary, 'consciousness', opt, '의식 상태'), opt === '무반응'))}
           </div>
         </div>
 
         <div className="sub-card">
-          <p className="text-sm font-bold mb-2"><i className="ri-first-aid-kit-line text-blue-primary"></i> 즉시 처치 상황 (다중선택)</p>
+          <div className="section-header">
+            <div className="section-icon"><i className="ri-lungs-line text-blue-primary" style={{ fontSize: '1.5rem' }}></i></div>
+            <div>
+              <h3>호흡 상태 (Breathing)</h3>
+              <p>환자의 호흡 여부와 양상을 확인하세요.</p>
+            </div>
+          </div>
+          <div className="chip-grid">
+            {["정상", "호흡곤란", "비정상 호흡/gasping", "무호흡"].map(opt => renderBtn(opt, primary.breathing === opt, () => handleChip(setPrimary, 'breathing', opt, '호흡 상태'), opt.includes('무호흡') || opt.includes('비정상')))}
+          </div>
+        </div>
+
+        <div className="sub-card">
+          <div className="section-header">
+            <div className="section-icon"><i className="ri-heart-pulse-line text-red-primary" style={{ fontSize: '1.5rem' }}></i></div>
+            <div>
+              <h3>순환 상태 (Circulation)</h3>
+              <p>맥박 유무 및 대량출혈 여부를 확인하세요.</p>
+            </div>
+          </div>
+          <div className="chip-grid">
+            {["맥박 있음", "맥박 약함", "맥박 없음", "대량출혈 있음"].map(opt => renderBtn(opt, primary.circulation === opt, () => handleChip(setPrimary, 'circulation', opt, '순환 상태'), opt === '맥박 없음' || opt.includes('대량출혈')))}
+          </div>
+        </div>
+
+        <div className="sub-card">
+          <div className="section-header">
+            <div className="section-icon"><i className="ri-first-aid-kit-line text-blue-primary" style={{ fontSize: '1.5rem' }}></i></div>
+            <div>
+              <h3>즉시 처치 상황 (다중선택)</h3>
+              <p>현장에서 즉시 수행한 응급처치를 선택하세요.</p>
+            </div>
+          </div>
           <div className="chip-grid">
             {["CPR 진행 중", "AED 적용 중", "AED shock 시행", "산소 투여 중", "지혈 중", "기도확보 필요", "경추고정 필요", "IV/수액 필요", "혈당 측정 필요"].map(opt => renderBtn(opt, primary.actions.includes(opt), () => handleChip(setPrimary, 'actions', opt, '처치', true), opt.includes("CPR") || opt.includes("AED") || opt.includes("기도확보")))}
           </div>
@@ -237,7 +268,7 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
                 
                 {isOpen && (
                   <div style={{ padding: '1rem', background: '#fff', borderTop: `1px solid var(--border-color)` }}>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="chip-grid">
                       {options.map(opt => renderBtn(opt, complaints[category].includes(opt), () => handleComplaint(category, opt)))}
                     </div>
                   </div>
@@ -258,7 +289,11 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
         <h2 className="section-title"><i className="ri-heart-pulse-fill text-blue-primary"></i> 4. 활력징후 및 SAMPLE 병력</h2>
         
         <div className="sub-card">
-          <p className="text-sm font-bold mb-3">활력징후 (Vitals)</p>
+          <div className="section-header">
+            <div>
+              <h3>활력징후 (Vitals)</h3>
+            </div>
+          </div>
           <div className="vitals-grid">
             <div><label className="text-xs font-bold text-gray">SBP</label><input type="number" name="sbp" className="form-input mt-1" placeholder="mmHg" value={vitals.sbp} onChange={handleVitalChange} onBlur={handleVitalBlur} /></div>
             <div><label className="text-xs font-bold text-gray">DBP</label><input type="number" name="dbp" className="form-input mt-1" placeholder="mmHg" value={vitals.dbp} onChange={handleVitalChange} onBlur={handleVitalBlur} /></div>
@@ -274,7 +309,11 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
         </div>
 
         <div className="sub-card mb-0">
-          <p className="text-sm font-bold mb-3">SAMPLE 병력 청취</p>
+          <div className="section-header">
+            <div>
+              <h3>SAMPLE 병력 청취</h3>
+            </div>
+          </div>
           <div className="grid-2" style={{ gap: '0.75rem' }}>
             <div><label className="text-xs text-gray">S (주호소)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.S} onChange={(e) => {saveHistory(); setSample(p=>({...p, S: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
             <div><label className="text-xs text-gray">A (알레르기)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.A} onChange={(e) => {saveHistory(); setSample(p=>({...p, A: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
