@@ -7,6 +7,7 @@ import HospitalDashboard from '@/components/HospitalDashboard';
 import DiseaseTabs from '@/components/DiseaseTabs';
 import { useSession, signOut } from "next-auth/react";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // Imports for EMS Logic
 import { TriageData, TriageResult, calculateSeverity } from '@/utils/triage';
@@ -14,6 +15,7 @@ import { RecommendedHospital, rankHospitals, mockHospitals } from '@/utils/hospi
 
 export default function Home() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('new');
 
   // V3 States
@@ -192,7 +194,7 @@ export default function Home() {
 
             {/* Hospital Recommendation - Replaced with a button to reduce clutter */}
             {triageResult && !showHospitalList && !isCompleted && (
-              <button 
+              <button
                 className="btn btn-primary w-full py-4 shadow-lg flex items-center justify-center gap-2 mb-4"
                 style={{ background: 'var(--blue-primary)', color: 'white', borderRadius: '12px', fontSize: '1.05rem' }}
                 onClick={() => setShowHospitalList(true)}
