@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     const record = await prisma.emergencyRecord.create({
       data: {
-        userId: session.user.id,
+        userId: (session.user as any).id,
         patientAge,
         patientGender,
         situation,
