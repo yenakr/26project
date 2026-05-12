@@ -25,6 +25,7 @@ export default function Home() {
   const [timelineLog, setTimelineLog] = useState<{time: string, msg: string}[]>([]);
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
   const [rankedHospitals, setRankedHospitals] = useState<RecommendedHospital[]>([]);
+  const [region, setRegion] = useState({ sido: "서울특별시", sigungu: "" });
 
   // Live update handler from Form
   const [dispatchTimelineAction, setDispatchTimelineAction] = useState<any>(null);
@@ -91,6 +92,29 @@ export default function Home() {
           </div>
           
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm">
+              <i className="ri-map-pin-2-fill text-blue-primary"></i>
+              <div className="flex items-center gap-1">
+                <select 
+                  className="text-sm font-bold border-none bg-transparent p-0 focus:ring-0 cursor-pointer"
+                  value={region.sido}
+                  onChange={(e) => setRegion(p => ({ ...p, sido: e.target.value }))}
+                >
+                  <option value="서울특별시">서울특별시</option>
+                  <option value="경기도">경기도</option>
+                  <option value="인천광역시">인천광역시</option>
+                  <option value="강원특별자치도">강원특별자치도</option>
+                  <option value="충청북도">충청북도</option>
+                </select>
+                <input 
+                  type="text"
+                  placeholder="시·군·구"
+                  className="text-sm border-none bg-transparent p-0 focus:ring-0 w-20"
+                  value={region.sigungu}
+                  onChange={(e) => setRegion(p => ({ ...p, sigungu: e.target.value }))}
+                />
+              </div>
+            </div>
             {session ? (
               <div className="flex items-center gap-2">
                 <div className="text-sm hidden sm:block">
@@ -121,6 +145,7 @@ export default function Home() {
           <div className="left-col" style={{ display: isCompleted ? 'none' : 'block' }}>
             <SBARForm 
               key={assessmentData === null ? 'reset' : 'active'} 
+              region={region}
               onLiveUpdate={handleLiveUpdate}
               onComplete={handleAssessComplete}
             />

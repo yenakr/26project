@@ -7,6 +7,7 @@ import { AuditLog, createLogId, getCurrentTimeStrings } from '../utils/auditLog'
 export type DispatchTimelineAction = (action: 'cancel' | 'restore', logId: string) => void;
 
 interface SBARFormProps {
+  region: { sido: string; sigungu: string };
   onLiveUpdate: (data: TriageData, extData: any, timeline: AuditLog[], dispatchTimelineAction: DispatchTimelineAction) => void;
   onComplete: () => void;
 }
@@ -22,9 +23,8 @@ const CHIEF_COMPLAINT_OPTIONS: Record<string, string[]> = {
   "소아/영아 응급": ["고열", "경련", "호흡곤란", "지속적인 보챔", "수유 거부", "의식저하", "이물질 삼킴 의심", "외상 의심"]
 };
 
-export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
+export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormProps) {
   // Form States
-  const [region, setRegion] = useState({ sido: "서울특별시", sigungu: "" });
   const [scene, setScene] = useState({ safety: "", risks: [] as string[], patients: "", support: [] as string[], access: "" });
   const [primary, setPrimary] = useState({ consciousness: "", breathing: "", circulation: "", actions: [] as string[] });
   const [complaints, setComplaints] = useState<Record<string, string[]>>(Object.keys(CHIEF_COMPLAINT_OPTIONS).reduce((acc, key) => ({ ...acc, [key]: [] }), {}));
@@ -64,6 +64,23 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Log region changes from outside
+  const [lastLoggedRegion, setLastLoggedRegion] = useState(region);
+  useEffect(() => {
+    if (region.sido !== lastLoggedRegion.sido || region.sigungu !== lastLoggedRegion.sigungu) {
+      const { timestamp, displayTime } = getCurrentTimeStrings();
+      const newLog: AuditLog = {
+        id: createLogId(), timestamp, displayTime, actionType: 'update', category: 'region', 
+        fieldPath: region.sido !== lastLoggedRegion.sido ? 'region.sido' : 'region.sigungu', 
+        selectionMode: 'single', label: '현장 지역 설정 변경', value: `${region.sido} ${region.sigungu}`, status: 'active', source: 'user'
+      };
+      const newLogs = [...auditLogs, newLog];
+      setAuditLogs(newLogs);
+      setLastLoggedRegion(region);
+      setTimeout(() => triggerUpdate(newLogs), 0);
+    }
+  }, [region]);
+
   // --- Centralized Logic: applyFieldUpdate ---
   // This updates the react state explicitly based on a given field path and value.
   const updateStateFromPath = (path: string, val: string, isMulti: boolean, isSelect: boolean) => {
@@ -75,11 +92,7 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
 
     let updatedStates: any = {};
 
-    if (domain === 'region') {
-      const newObj = { ...region, [field]: val };
-      setRegion(newObj);
-      updatedStates.region = newObj;
-    } else if (domain === 'scene') {
+    if (domain === 'scene') {
       const newObj = { ...scene, [field]: isMulti ? toggleMulti((scene as any)[field]) : (isSelect ? val : "") };
       setScene(newObj);
       updatedStates.scene = newObj;
@@ -292,62 +305,6 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
   return (
     <div style={{ position: 'relative' }}>
       
-      {/* Step 0: Region Selection */}
-      <div className="card" style={{ paddingBottom: '1rem' }}>
-        <h2 className="section-title"><i className="ri-road-map-line text-blue-primary"></i> 0. 현장 지역 설정</h2>
-        <div className="grid-2">
-          <div>
-            <label className="text-xs font-bold text-gray">시·도</label>
-            <select 
-              className="form-input mt-1" 
-              value={region.sido}
-              onChange={(e) => {
-                const val = e.target.value;
-                setRegion(p => ({...p, sido: val}));
-                const { timestamp, displayTime } = getCurrentTimeStrings();
-                const newLog: AuditLog = {
-                  id: createLogId(), timestamp, displayTime, actionType: 'update', category: 'region', fieldPath: 'region.sido', selectionMode: 'single', label: '현장 지역 설정', value: val, status: 'active', source: 'user'
-                };
-                const newLogs = [...auditLogs, newLog];
-                setAuditLogs(newLogs);
-                setTimeout(() => triggerUpdate(newLogs, { region: { ...region, sido: val } }), 0);
-              }}
-            >
-              <option value="서울특별시">서울특별시</option>
-              <option value="경기도">경기도</option>
-              <option value="인천광역시">인천광역시</option>
-              <option value="강원특별자치도">강원특별자치도</option>
-              <option value="충청북도">충청북도</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray">시·군·구</label>
-            <input 
-              type="text" 
-              className="form-input mt-1" 
-              placeholder="예: 성동구, 수원시" 
-              value={region.sigungu}
-              onChange={(e) => {
-                setRegion(p => ({...p, sigungu: e.target.value}));
-                setTimeout(() => triggerUpdate(auditLogs, { region: { ...region, sigungu: e.target.value } }), 0);
-              }}
-              onBlur={(e) => {
-                const val = e.target.value;
-                if(val) {
-                  const { timestamp, displayTime } = getCurrentTimeStrings();
-                  const newLog: AuditLog = {
-                    id: createLogId(), timestamp, displayTime, actionType: 'update', category: 'region', fieldPath: 'region.sigungu', selectionMode: 'text', label: '현장 시군구 입력', value: val, status: 'active', source: 'user'
-                  };
-                  const newLogs = [...auditLogs, newLog];
-                  setAuditLogs(newLogs);
-                  setTimeout(() => triggerUpdate(newLogs), 0);
-                }
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Step 1: Scene Size-up */}
       <div id="step-1" className="card">
         <h2 className="section-title"><i className="ri-map-pin-line text-blue-primary"></i> 1. 현장 상황 확인</h2>
