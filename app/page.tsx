@@ -36,7 +36,7 @@ export default function Home() {
     const triage = calculateSeverity(data);
     setTriageResult(triage);
     
-    if (triage.level < 4 || data.complaints["심정지/무반응"]?.length > 0) {
+    if (triage.level < 4 || (data.complaints["심정지/무반응"]?.length ?? 0) > 0) {
       // Filter by Region
       const regionHospitals = mockHospitals.filter(h => h.sido === extData.region.sido);
       setRankedHospitals(rankHospitals(data, triage, regionHospitals));
@@ -158,7 +158,7 @@ export default function Home() {
             )}
 
             {/* Live Hospital Dashboard */}
-            {triageResult && (triageResult.level < 4 || assessmentData?.complaints["심정지/무반응"]?.length > 0) && (
+            {triageResult && (triageResult.level < 4 || (assessmentData?.complaints["심정지/무반응"]?.length ?? 0) > 0) && (
               <HospitalDashboard hospitals={rankedHospitals} />
             )}
 
