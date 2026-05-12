@@ -362,37 +362,43 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
             patientAge: scene.patients,
             patientGender: "", 
             situation: scene.safety,
-            background: scene.risks.join(', '),
+            background: Array.isArray(scene.risks) ? scene.risks.join(', ') : "",
             bp: `${vitals.sbp}/${vitals.dbp}`,
             hr: vitals.hr,
             spo2: vitals.spo2,
             nrs: vitals.nrs,
-            recommendation: primary.actions.join(', '),
+            recommendation: Array.isArray(primary.actions) ? primary.actions.join(', ') : "",
             preKtas: "N/A",
             logs: newLogs,
           }),
         });
 
-        if (response.ok) {
+        const result = await response.json().catch(() => ({}));
+
+        if (response.ok && result.success) {
           setSaveStatus('success');
           newLogs.push({
             id: createLogId(), ...getCurrentTimeStrings(), actionType: 'update', category: 'system',
             fieldPath: 'system.save', selectionMode: 'single', label: '기록 저장 완료',
             value: 'Neon DB 저장 성공', status: 'active', source: 'user'
           });
+          // Wait a bit to show success state to user
+          await new Promise(resolve => setTimeout(resolve, 800));
         } else {
-          const errData = await response.json().catch(() => ({}));
-          console.error("Save failed response:", errData);
+          console.error("Save failed response:", result);
           setSaveStatus('error');
           newLogs.push({
             id: createLogId(), ...getCurrentTimeStrings(), actionType: 'update', category: 'system',
             fieldPath: 'system.save', selectionMode: 'single', label: '기록 저장 실패',
-            value: errData.error || '서버 응답 오류', status: 'active', source: 'user'
+            value: result.error || '서버 응답 오류', status: 'active', source: 'user'
           });
+          // Also wait a bit so they can see the red error message
+          await new Promise(resolve => setTimeout(resolve, 1500));
         }
       } catch (error) {
         console.error("SAVE_ERROR", error);
         setSaveStatus('error');
+        await new Promise(resolve => setTimeout(resolve, 1500));
       } finally {
         setIsSaving(false);
       }
@@ -580,6 +586,11 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
             <>
               <i className="ri-loader-4-line ri-spin"></i>
               저장 중...
+            </>
+          ) : saveStatus === 'success' ? (
+            <>
+              <i className="ri-checkbox-circle-line"></i>
+              저장 완료! (이동 중)
             </>
           ) : (
             <>
