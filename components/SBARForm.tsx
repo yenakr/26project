@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { TriageData } from '../utils/triage';
 import { AuditLog, createLogId, getCurrentTimeStrings } from '../utils/auditLog';
 
@@ -37,6 +38,10 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   // Previous vitals tracker for onBlur
   const [prevVitals, setPrevVitals] = useState({ ...vitals });
+  
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { data: session } = useSession();
 
   // Trigger update to parent
   const triggerUpdate = (currentLogs = auditLogs, newStates?: any) => {
@@ -292,6 +297,45 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
     }
   };
 
+  const handleSave = async () => {
+    if (!session) return;
+    
+    setIsSaving(true);
+    setSaveStatus('idle');
+    
+    try {
+      const response = await fetch('/api/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientAge: scene.patients,
+          patientGender: "", // Could be added to UI later
+          situation: scene.safety,
+          background: scene.risks.join(', '),
+          bp: `${vitals.sbp}/${vitals.dbp}`,
+          hr: vitals.hr,
+          spo2: vitals.spo2,
+          nrs: vitals.nrs,
+          recommendation: primary.actions.join(', '),
+          preKtas: "N/A",
+          logs: auditLogs, // Persistence of audit logs
+        }),
+      });
+
+      if (response.ok) {
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } else {
+        setSaveStatus('error');
+      }
+    } catch (error) {
+      console.error("SAVE_ERROR", error);
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // UI Helpers
   const renderBtn = (fieldPath: string, selectionMode: 'single'|'multi', labelText: string, value: string, isSelected: boolean, danger: boolean = false) => (
     <button
@@ -439,7 +483,26 @@ export default function SBARForm({ region, onLiveUpdate, onComplete }: SBARFormP
         </div>
       </div>
 
-      <div className="mt-6 mb-8 flex justify-between gap-4">
+      <div className="mt-6 mb-8 flex flex-col sm:flex-row justify-between gap-4">
+        {session && (
+          <button 
+            className="btn" 
+            onClick={handleSave} 
+            disabled={isSaving}
+            style={{ 
+              flex: 1, 
+              padding: '1.25rem', 
+              fontSize: '1.125rem', 
+              backgroundColor: saveStatus === 'success' ? '#059669' : 'var(--blue-primary)',
+              color: 'white' 
+            }}
+          >
+            <i className={isSaving ? "ri-loader-4-line ri-spin" : (saveStatus === 'success' ? "ri-checkbox-circle-line" : "ri-save-line")}></i>
+            <span className="ml-2">
+              {isSaving ? '저장 중...' : (saveStatus === 'success' ? '저장 완료!' : (saveStatus === 'error' ? '저장 실패(재시도)' : 'DB에 기록 저장'))}
+            </span>
+          </button>
+        )}
         <button className="btn btn-primary" onClick={onComplete} style={{ flex: 1, padding: '1.25rem', fontSize: '1.125rem', backgroundColor: 'var(--green-primary)' }}>
           <i className="ri-check-double-line mr-2"></i> 평가 완료 및 인계 요약
         </button>
