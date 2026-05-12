@@ -204,7 +204,7 @@ export default function SBARForm({ onAssess }: SBARFormProps) {
         {/* Assessment */}
         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
           <label className="form-label">A: Assessment (활력징후)</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <div className="vitals-grid" style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <div>
               <label className="text-xs text-gray">수축기 (SBP)</label>
               <input 
