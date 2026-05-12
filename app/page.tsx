@@ -17,7 +17,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('new');
   
   // V3 States
-  const [currentStep, setCurrentStep] = useState(1); // 1: Scene, 2: Primary, 3: CC, 4: Vitals, 5: Triage
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
   
   const [assessmentData, setAssessmentData] = useState<TriageData | null>(null);
   const [extendedData, setExtendedData] = useState<any>(null); // holds scene, sample, customComplaint
@@ -43,7 +44,8 @@ export default function Home() {
   };
 
   const handleAssessComplete = async () => {
-    setCurrentStep(5); // Move to final summary step
+    setIsCompleted(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     if (session && extendedData) {
       try {
         await fetch('/api/records', {
@@ -64,42 +66,15 @@ export default function Home() {
       setTimelineLog([]);
       setTriageResult(null);
       setRankedHospitals([]);
-      setCurrentStep(1);
-      // SBARForm will need to mount/unmount to reset its internal state, easiest way is to pass a key
+      setIsCompleted(false);
+      setIsTimelineExpanded(false);
     }
-  };
-
-  const renderStepper = () => {
-    const steps = [
-      { id: 1, label: "현장상황" },
-      { id: 2, label: "1차평가" },
-      { id: 3, label: "주증상" },
-      { id: 4, label: "활력징후" },
-      { id: 5, label: "인계/병원" }
-    ];
-
-    return (
-      <div className="stepper mt-4">
-        {steps.map(step => {
-          let className = "step-item";
-          if (currentStep === step.id) className += " active";
-          else if (currentStep > step.id) className += " completed";
-          
-          return (
-            <div key={step.id} className={className} onClick={() => {if(currentStep > step.id) setCurrentStep(step.id)}} style={{ cursor: currentStep > step.id ? 'pointer' : 'default' }}>
-              {currentStep > step.id ? <i className="ri-check-line"></i> : <span>{step.id}</span>}
-              {step.label}
-            </div>
-          );
-        })}
-      </div>
-    );
   };
 
   return (
     <div className="container">
       <header className="header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-        <div className="flex justify-between items-center w-full mb-2">
+        <div className="flex justify-between items-center w-full">
           <div className="logo-area">
             <div className="logo-icon">
               <i className="ri-heart-pulse-fill"></i>
@@ -113,7 +88,7 @@ export default function Home() {
           <div className="flex items-center gap-4">
             {session ? (
               <div className="flex items-center gap-2">
-                <div className="text-sm">
+                <div className="text-sm hidden sm:block">
                   <span className="font-bold" style={{ color: 'var(--blue-dark)' }}>{session.user?.name || '구급대원'}</span>
                 </div>
                 <button onClick={() => signOut()} className="btn" style={{ minHeight: '36px', padding: '0 12px', fontSize: '13px', background: '#e2e8f0', color: '#475569' }}>로그아웃</button>
@@ -123,9 +98,6 @@ export default function Home() {
             )}
           </div>
         </div>
-        
-        {/* V3 Stepper */}
-        {activeTab === 'new' && renderStepper()}
       </header>
 
       {/* TABS */}
@@ -140,19 +112,23 @@ export default function Home() {
 
       {activeTab === 'new' && (
         <div className="dashboard-grid">
-          {/* Left Column: Input Form */}
-          <div className="left-col">
+          {/* Left Column: Input Form (Hidden on Mobile when Completed) */}
+          <div className="left-col" style={{ display: isCompleted ? 'none' : 'block' }}>
             <SBARForm 
               key={assessmentData === null ? 'reset' : 'active'} 
-              currentStep={currentStep} 
-              setCurrentStep={setCurrentStep}
               onLiveUpdate={handleLiveUpdate}
               onComplete={handleAssessComplete}
             />
           </div>
 
           {/* Right Column: Live Dashboards */}
-          <div className="right-col flex-col gap-4">
+          <div className="right-col flex-col gap-4" style={{ width: isCompleted ? '100%' : 'auto', gridColumn: isCompleted ? '1 / -1' : 'auto' }}>
+            
+            {/* SBAR Output only visible when Completed */}
+            {isCompleted && extendedData && (
+              <PatientSummary data={assessmentData} extData={extendedData} triage={triageResult!} />
+            )}
+
             {/* Live Triage Card */}
             {triageResult && (
               <div className="card" style={{ 
@@ -179,15 +155,23 @@ export default function Home() {
               </div>
             )}
 
+            {/* Live Hospital Dashboard */}
+            {rankedHospitals.length > 0 && triageResult && (
+              <HospitalDashboard hospitals={rankedHospitals} />
+            )}
+
             {/* Live Timeline Log */}
-            <div className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: currentStep === 5 ? 'auto' : '300px', marginBottom: '1rem' }}>
-              <div style={{ padding: '1rem', background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
-                <h3 className="font-bold" style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <i className="ri-time-line text-blue-primary"></i> 시간별 상태 변화 로그
-                </h3>
-              </div>
-              <div style={{ padding: '1rem', overflowY: 'auto', flex: 1, backgroundColor: '#fff' }}>
-                {timelineLog.length === 0 ? <p className="text-sm text-gray">기록이 없습니다.</p> : (
+            {timelineLog.length > 0 && (
+              <div className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: isTimelineExpanded ? '500px' : '300px', marginBottom: '1rem', transition: 'height 0.3s' }}>
+                <div style={{ padding: '1rem', background: '#f8fafc', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 className="font-bold" style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="ri-time-line text-blue-primary"></i> 현장 기록 로그
+                  </h3>
+                  <button className="badge-btn" style={{ minHeight: '32px', padding: '0 12px', fontSize: '0.8rem' }} onClick={() => setIsTimelineExpanded(!isTimelineExpanded)}>
+                    {isTimelineExpanded ? '접기' : '전체보기'}
+                  </button>
+                </div>
+                <div style={{ padding: '1rem', overflowY: 'auto', flex: 1, backgroundColor: '#fff' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {timelineLog.map((log, i) => (
                       <div key={i} className="flex gap-2 items-start">
@@ -196,25 +180,17 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-
-            {/* Live Hospital Dashboard */}
-            {rankedHospitals.length > 0 && currentStep >= 3 && (
-              <HospitalDashboard hospitals={rankedHospitals} />
-            )}
-            
-            {/* SBAR Output only visible on Step 5 */}
-            {currentStep === 5 && extendedData && (
-              <PatientSummary data={assessmentData} extData={extendedData} triage={triageResult!} />
             )}
 
-            <div className="text-center mt-4">
-              <button className="btn" style={{ background: '#f1f5f9', color: '#475569', width: '100%' }} onClick={resetFlow}>
-                <i className="ri-refresh-line"></i> 처음부터 다시 평가하기
-              </button>
-            </div>
+            {isCompleted && (
+              <div className="text-center mt-4">
+                <button className="btn" style={{ background: '#f1f5f9', color: '#475569', width: '100%' }} onClick={resetFlow}>
+                  <i className="ri-refresh-line"></i> 처음부터 다시 평가하기
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { TriageData } from '../utils/triage';
 
 interface SBARFormProps {
-  currentStep: number;
-  setCurrentStep: (step: number) => void;
   onLiveUpdate: (data: TriageData, extData: any, timeline: {time: string, msg: string}[]) => void;
   onComplete: () => void;
 }
@@ -21,7 +19,7 @@ const CHIEF_COMPLAINT_OPTIONS: Record<string, string[]> = {
   "소아/영아 응급": ["고열", "경련", "호흡곤란", "지속적인 보챔", "수유 거부", "의식저하", "이물질 삼킴 의심", "외상 의심"]
 };
 
-export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, onComplete }: SBARFormProps) {
+export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
   // Timeline Logger
   const [timeline, setTimeline] = useState<{time: string, msg: string}[]>([]);
   
@@ -44,6 +42,33 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
   const [sample, setSample] = useState({ S: "", A: "", M: "", P: "", L: "", E: "" });
   const [vitals, setVitals] = useState({ sbp: "", dbp: "", hr: "", spo2: "", nrs: "", bt: "", bst: "", rr: "" });
 
+  // History Stack for Undo
+  const [history, setHistory] = useState<any[]>([]);
+
+  const saveHistory = () => {
+    setHistory(prev => [...prev, { scene, primary, complaints, customComplaint, sample, vitals, timeline }]);
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    const lastState = history[history.length - 1];
+    setScene(lastState.scene);
+    setPrimary(lastState.primary);
+    setComplaints(lastState.complaints);
+    setCustomComplaint(lastState.customComplaint);
+    setSample(lastState.sample);
+    setVitals(lastState.vitals);
+    setTimeline(lastState.timeline);
+    setHistory(prev => prev.slice(0, -1));
+    
+    // Trigger update with restored state
+    const data: TriageData = {
+      primary: lastState.primary, complaints: lastState.complaints,
+      vitals: { sbp: lastState.vitals.sbp, dbp: lastState.vitals.dbp, hr: lastState.vitals.hr, spo2: lastState.vitals.spo2, nrs: lastState.vitals.nrs }
+    };
+    onLiveUpdate(data, { scene: lastState.scene, sample: lastState.sample, customComplaint: lastState.customComplaint }, lastState.timeline);
+  };
+
   useEffect(() => {
     logEvent("현장 도착");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -60,6 +85,7 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
 
   // Updaters
   const handleChip = (setter: any, field: string, val: string, logMsg: string, isMulti: boolean = false) => {
+    saveHistory();
     setter((prev: any) => {
       if (isMulti) {
         const arr = prev[field] as string[];
@@ -75,6 +101,7 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
   };
 
   const handleComplaint = (category: string, val: string) => {
+    saveHistory();
     setComplaints(prev => {
       const arr = prev[category];
       const isAdding = !arr.includes(val);
@@ -85,6 +112,7 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
   };
 
   const handleVitalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    saveHistory();
     setVitals(prev => ({ ...prev, [e.target.name]: e.target.value }));
     setTimeout(() => triggerUpdate(), 0);
   };
@@ -106,7 +134,7 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
     <div style={{ position: 'relative' }}>
       
       {/* Step 1: Scene Size-up */}
-      <div className={`card ${currentStep >= 1 ? '' : 'blurred'}`} onClick={() => {if (currentStep < 1) setCurrentStep(1)}}>
+      <div id="step-1" className="card">
         <h2 className="section-title"><i className="ri-map-pin-line text-blue-primary"></i> 1. 현장 상황 확인</h2>
         
         <div className="sub-card">
@@ -140,7 +168,7 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
       </div>
 
       {/* Step 2: Primary Survey */}
-      <div className={`card ${currentStep >= 2 ? '' : 'blurred'}`} onClick={() => {if (currentStep < 2) setCurrentStep(2)}}>
+      <div id="step-2" className="card">
         <h2 className="section-title"><i className="ri-stethoscope-line text-blue-primary"></i> 2. 환자 1차 평가 (Primary Survey)</h2>
         
         <div className="sub-card flex gap-4 items-center">
@@ -182,7 +210,7 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
       </div>
 
       {/* Step 3: Chief Complaint */}
-      <div className={`card ${currentStep >= 3 ? '' : 'blurred'}`} onClick={() => {if (currentStep < 3) setCurrentStep(3)}}>
+      <div id="step-3" className="card">
         <h2 className="section-title"><i className="ri-search-eye-line text-blue-primary"></i> 3. 주증상 및 세부 징후 (다중선택)</h2>
         <p className="text-sm text-gray mb-4">환자의 복합적인 상태를 반영하기 위해 여러 주증상 카테고리를 열어 선택할 수 있습니다.</p>
         
@@ -219,14 +247,14 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
           })}
           <input 
             type="text" className="form-input mt-2" placeholder="기타 증상 (직접 입력)" 
-            value={customComplaint} onChange={(e) => {setCustomComplaint(e.target.value); setTimeout(() => triggerUpdate(), 0);}}
+            value={customComplaint} onChange={(e) => {saveHistory(); setCustomComplaint(e.target.value); setTimeout(() => triggerUpdate(), 0);}}
             onBlur={() => { if(customComplaint) logEvent(`기타 주증상: ${customComplaint}`) }}
           />
         </div>
       </div>
 
       {/* Step 4: Vitals & SAMPLE */}
-      <div className={`card ${currentStep >= 4 ? '' : 'blurred'}`} onClick={() => {if (currentStep < 4) setCurrentStep(4)}}>
+      <div id="step-4" className="card">
         <h2 className="section-title"><i className="ri-heart-pulse-fill text-blue-primary"></i> 4. 활력징후 및 SAMPLE 병력</h2>
         
         <div className="sub-card">
@@ -248,45 +276,34 @@ export default function SBARForm({ currentStep, setCurrentStep, onLiveUpdate, on
         <div className="sub-card mb-0">
           <p className="text-sm font-bold mb-3">SAMPLE 병력 청취</p>
           <div className="grid-2" style={{ gap: '0.75rem' }}>
-            <div><label className="text-xs text-gray">S (주호소)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.S} onChange={(e) => {setSample(p=>({...p, S: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
-            <div><label className="text-xs text-gray">A (알레르기)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.A} onChange={(e) => {setSample(p=>({...p, A: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
-            <div><label className="text-xs text-gray">M (복용약)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.M} onChange={(e) => {setSample(p=>({...p, M: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
-            <div><label className="text-xs text-gray">P (과거력)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.P} onChange={(e) => {setSample(p=>({...p, P: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
-            <div><label className="text-xs text-gray">L (마지막 식사)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.L} onChange={(e) => {setSample(p=>({...p, L: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
-            <div><label className="text-xs text-gray">E (발생경위)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.E} onChange={(e) => {setSample(p=>({...p, E: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
+            <div><label className="text-xs text-gray">S (주호소)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.S} onChange={(e) => {saveHistory(); setSample(p=>({...p, S: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
+            <div><label className="text-xs text-gray">A (알레르기)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.A} onChange={(e) => {saveHistory(); setSample(p=>({...p, A: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
+            <div><label className="text-xs text-gray">M (복용약)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.M} onChange={(e) => {saveHistory(); setSample(p=>({...p, M: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
+            <div><label className="text-xs text-gray">P (과거력)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.P} onChange={(e) => {saveHistory(); setSample(p=>({...p, P: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
+            <div><label className="text-xs text-gray">L (마지막 식사)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.L} onChange={(e) => {saveHistory(); setSample(p=>({...p, L: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
+            <div><label className="text-xs text-gray">E (발생경위)</label><input type="text" className="form-input mt-1" style={{ minHeight: '36px', padding: '0.5rem' }} value={sample.E} onChange={(e) => {saveHistory(); setSample(p=>({...p, E: e.target.value})); setTimeout(()=>triggerUpdate(),0);}} /></div>
           </div>
         </div>
       </div>
 
       {/* Desktop Navigation / Complete Button */}
-      <div className="mt-6 mb-8 text-center" style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-        {currentStep < 4 ? (
-          <button className="btn btn-primary" onClick={() => setCurrentStep(currentStep + 1)} style={{ width: '100%', padding: '1rem', fontSize: '1.125rem' }}>
-            다음 단계로 ({currentStep}/4) <i className="ri-arrow-right-line ml-2"></i>
-          </button>
-        ) : (
-          <button className="btn btn-primary" onClick={onComplete} style={{ width: '100%', padding: '1.25rem', fontSize: '1.125rem', backgroundColor: 'var(--green-primary)' }}>
-            <i className="ri-check-double-line mr-2"></i> 인계 요약 및 병원 추천 생성 완료
-          </button>
-        )}
+      <div className="mt-6 mb-8 flex justify-between gap-4">
+        <button className="btn" onClick={handleUndo} style={{ flex: 1, padding: '1.25rem', fontSize: '1.125rem', backgroundColor: '#e2e8f0', color: '#475569' }} disabled={history.length === 0}>
+          <i className="ri-arrow-go-back-line mr-2"></i> 이전 기록 취소
+        </button>
+        <button className="btn btn-primary" onClick={onComplete} style={{ flex: 2, padding: '1.25rem', fontSize: '1.125rem', backgroundColor: 'var(--green-primary)' }}>
+          <i className="ri-check-double-line mr-2"></i> 평가 완료 및 인계 요약
+        </button>
       </div>
 
       {/* Mobile Sticky Action Bar */}
       <div className="sticky-action-bar">
-        {currentStep > 1 && (
-          <button className="btn" style={{ flex: 1, background: '#f1f5f9', color: '#475569' }} onClick={() => setCurrentStep(currentStep - 1)}>
-            이전
-          </button>
-        )}
-        {currentStep < 4 ? (
-          <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => setCurrentStep(currentStep + 1)}>
-            다음 단계
-          </button>
-        ) : (
-          <button className="btn" style={{ flex: 2, background: 'var(--green-primary)', color: 'white' }} onClick={onComplete}>
-            평가 완료
-          </button>
-        )}
+        <button className="btn" style={{ flex: 1, background: '#e2e8f0', color: '#475569' }} onClick={handleUndo} disabled={history.length === 0}>
+          <i className="ri-arrow-go-back-line"></i> 취소
+        </button>
+        <button className="btn" style={{ flex: 2, background: 'var(--green-primary)', color: 'white' }} onClick={onComplete}>
+          <i className="ri-check-double-line mr-1"></i> 평가 완료
+        </button>
       </div>
 
     </div>
