@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SBARForm from '@/components/SBARForm';
 import PatientSummary from '@/components/PatientSummary';
 import HospitalDashboard from '@/components/HospitalDashboard';
@@ -8,7 +8,7 @@ import DiseaseTabs from '@/components/DiseaseTabs';
 import { useSession, signOut } from "next-auth/react";
 import Link from 'next/link';
 
-// Imports for new EMS Logic
+// Imports for EMS Logic
 import { TriageData, TriageResult, calculateSeverity } from '@/utils/triage';
 import { RecommendedHospital, rankHospitals, mockHospitals } from '@/utils/hospitals';
 
@@ -16,168 +16,216 @@ export default function Home() {
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState('new');
   
-  // States for V2 Flow
+  // V3 States
+  const [currentStep, setCurrentStep] = useState(1); // 1: Scene, 2: Primary, 3: CC, 4: Vitals, 5: Triage
+  
   const [assessmentData, setAssessmentData] = useState<TriageData | null>(null);
+  const [extendedData, setExtendedData] = useState<any>(null); // holds scene, sample, customComplaint
   const [timelineLog, setTimelineLog] = useState<{time: string, msg: string}[]>([]);
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
   const [rankedHospitals, setRankedHospitals] = useState<RecommendedHospital[]>([]);
 
-  const handleAssess = (data: TriageData, timeline: {time: string, msg: string}[]) => {
-    // 1. Calculate Severity
-    const triage = calculateSeverity(data);
-    
-    // 2. Rank Hospitals
-    const hospitals = rankHospitals(data, triage, mockHospitals);
-
-    // 3. Update States
+  // Live update handler from Form
+  const handleLiveUpdate = (data: TriageData, extData: any, timeline: {time: string, msg: string}[]) => {
     setAssessmentData(data);
+    setExtendedData(extData);
     setTimelineLog(timeline);
+    
+    // Live Triage & Hospital Ranking
+    const triage = calculateSeverity(data);
     setTriageResult(triage);
-    setRankedHospitals(hospitals);
+    
+    if (triage.level < 4 || data.complaints["심정지/무반응"]?.length > 0) {
+      setRankedHospitals(rankHospitals(data, triage, mockHospitals));
+    } else {
+      setRankedHospitals([]);
+    }
+  };
+
+  const handleAssessComplete = async () => {
+    setCurrentStep(5); // Move to final summary step
+    if (session && extendedData) {
+      try {
+        await fetch('/api/records', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...extendedData, userId: session.user?.email })
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const resetFlow = () => {
-    setAssessmentData(null);
-    setTimelineLog([]);
-    setTriageResult(null);
-    setRankedHospitals([]);
+    if (confirm("정말 초기화하시겠습니까? 현재까지 입력된 데이터가 모두 삭제됩니다.")) {
+      setAssessmentData(null);
+      setExtendedData(null);
+      setTimelineLog([]);
+      setTriageResult(null);
+      setRankedHospitals([]);
+      setCurrentStep(1);
+      // SBARForm will need to mount/unmount to reset its internal state, easiest way is to pass a key
+    }
+  };
+
+  const renderStepper = () => {
+    const steps = [
+      { id: 1, label: "현장상황" },
+      { id: 2, label: "1차평가" },
+      { id: 3, label: "주증상" },
+      { id: 4, label: "활력징후" },
+      { id: 5, label: "인계/병원" }
+    ];
+
+    return (
+      <div className="stepper mt-4">
+        {steps.map(step => {
+          let className = "step-item";
+          if (currentStep === step.id) className += " active";
+          else if (currentStep > step.id) className += " completed";
+          
+          return (
+            <div key={step.id} className={className} onClick={() => {if(currentStep > step.id) setCurrentStep(step.id)}} style={{ cursor: currentStep > step.id ? 'pointer' : 'default' }}>
+              {currentStep > step.id ? <i className="ri-check-line"></i> : <span>{step.id}</span>}
+              {step.label}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
     <div className="container">
-      <header className="header">
-        <div className="logo-area">
-          <div className="logo-icon">
-            <i className="ri-heart-pulse-fill"></i>
+      <header className="header" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+        <div className="flex justify-between items-center w-full mb-2">
+          <div className="logo-area">
+            <div className="logo-icon">
+              <i className="ri-heart-pulse-fill"></i>
+            </div>
+            <div className="title">
+              <h1 style={{ marginBottom: 0 }}>CODE BLUE</h1>
+              <p>병원 전 응급환자 전문 의사결정 지원 시스템</p>
+            </div>
           </div>
-          <div className="title">
-            <h1>CODE BLUE</h1>
-            <p>병원 전 응급환자 인계 및 수용 정보 프로토타입</p>
+          
+          <div className="flex items-center gap-4">
+            {session ? (
+              <div className="flex items-center gap-2">
+                <div className="text-sm">
+                  <span className="font-bold" style={{ color: 'var(--blue-dark)' }}>{session.user?.name || '구급대원'}</span>
+                </div>
+                <button onClick={() => signOut()} className="btn" style={{ minHeight: '36px', padding: '0 12px', fontSize: '13px', background: '#e2e8f0', color: '#475569' }}>로그아웃</button>
+              </div>
+            ) : (
+              <Link href="/login" className="btn btn-primary" style={{ minHeight: '36px', padding: '0 12px', fontSize: '13px' }}>로그인</Link>
+            )}
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          {session ? (
-            <>
-              <div className="text-sm">
-                <span className="font-bold text-blue-dark">{session.user?.name || '구급대원'}</span> 님
-                <span className="text-gray ml-2">({session.user?.email})</span>
-              </div>
-              <button 
-                onClick={() => signOut()} 
-                className="btn" 
-                style={{ background: '#f1f5f9', color: '#475569', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-              >
-                로그아웃
-              </button>
-            </>
-          ) : (
-            <Link href="/login" className="btn btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-              로그인 / 등록
-            </Link>
-          )}
-        </div>
+        {/* V3 Stepper */}
+        {activeTab === 'new' && renderStepper()}
       </header>
 
-      <div className="flex gap-2 mb-6" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-        <button 
-          className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`}
-          style={{ 
-            padding: '0.5rem 1.5rem', 
-            background: activeTab === 'new' ? 'var(--blue-primary)' : 'transparent', 
-            color: activeTab === 'new' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderRadius: '20px',
-            fontWeight: activeTab === 'new' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-          onClick={() => { setActiveTab('new'); resetFlow(); }}
-        >
+      {/* TABS */}
+      <div className="flex gap-2 mb-6" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+        <button className={`step-item ${activeTab === 'new' ? 'active' : ''}`} onClick={() => setActiveTab('new')}>
           <i className="ri-add-line"></i> 새 환자 평가
         </button>
-        <button 
-          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          style={{ 
-            padding: '0.5rem 1.5rem', 
-            background: activeTab === 'history' ? 'var(--blue-primary)' : 'transparent', 
-            color: activeTab === 'history' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderRadius: '20px',
-            fontWeight: activeTab === 'history' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('history')}
-        >
+        <button className={`step-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
           <i className="ri-history-line"></i> 내 인계 기록
         </button>
-        <button 
-          className={`tab-btn ${activeTab === 'guidelines' ? 'active' : ''}`}
-          style={{ 
-            padding: '0.5rem 1.5rem', 
-            background: activeTab === 'guidelines' ? 'var(--blue-primary)' : 'transparent', 
-            color: activeTab === 'guidelines' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderRadius: '20px',
-            fontWeight: activeTab === 'guidelines' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('guidelines')}
-        >
-          <i className="ri-book-read-line"></i> 질환별 이송 지침
-        </button>
       </div>
 
-      <div className="grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-        
-        {activeTab === 'new' && (
-          !assessmentData ? (
-            <section className="fade-in" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-              <SBARForm onAssess={handleAssess} />
-            </section>
-          ) : (
-            <div className="fade-in">
-              <section className="mb-6">
-                <PatientSummary data={assessmentData} timeline={timelineLog} triage={triageResult!} />
-              </section>
+      {activeTab === 'new' && (
+        <div className="dashboard-grid">
+          {/* Left Column: Input Form */}
+          <div className="left-col">
+            <SBARForm 
+              key={assessmentData === null ? 'reset' : 'active'} 
+              currentStep={currentStep} 
+              setCurrentStep={setCurrentStep}
+              onLiveUpdate={handleLiveUpdate}
+              onComplete={handleAssessComplete}
+            />
+          </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
-                <section>
-                  <HospitalDashboard hospitals={rankedHospitals} />
-                </section>
-                <section>
-                  <DiseaseTabs />
-                </section>
+          {/* Right Column: Live Dashboards */}
+          <div className="right-col flex-col gap-4">
+            {/* Live Triage Card */}
+            {triageResult && (
+              <div className="card" style={{ 
+                borderLeft: `8px solid ${triageResult.level === 1 ? 'var(--red-primary)' : triageResult.level === 2 ? 'var(--amber-primary)' : triageResult.level === 3 ? 'var(--yellow-primary)' : 'var(--green-primary)'}`,
+                padding: '1.25rem', marginBottom: '1rem' 
+              }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <i className="ri-alarm-warning-fill" style={{ fontSize: '1.5rem', color: triageResult.level <= 2 ? 'var(--red-primary)' : 'var(--amber-primary)' }}></i>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>중증도 분류 결과</h3>
+                </div>
+                <div className="mb-2">
+                  <span className="badge-tag" style={{ 
+                    background: triageResult.level === 1 ? 'var(--red-bg)' : triageResult.level === 2 ? 'var(--amber-bg)' : 'var(--yellow-bg)', 
+                    color: triageResult.level === 1 ? 'var(--red-dark)' : triageResult.level === 2 ? '#b45309' : '#854d0e',
+                    fontSize: '1rem', padding: '0.4rem 0.8rem' 
+                  }}>
+                    {triageResult.label}
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-gray mt-3 mb-1">분류 근거</p>
+                <p className="text-sm" style={{ color: '#333' }}>{triageResult.reasons.join(" + ") || "입력된 위협 요소 없음"}</p>
+                <p className="text-sm font-bold text-gray mt-3 mb-1">권고 사항</p>
+                <p className="text-sm" style={{ color: 'var(--blue-dark)' }}>{triageResult.recommendation}</p>
               </div>
-              
-              <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                <button 
-                  className="btn" 
-                  style={{ backgroundColor: '#e2e8f0', color: '#475569' }} 
-                  onClick={resetFlow}
-                >
-                  <i className="ri-arrow-go-back-line"></i> 새로운 환자 평가하기
-                </button>
+            )}
+
+            {/* Live Timeline Log */}
+            <div className="card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: currentStep === 5 ? 'auto' : '300px', marginBottom: '1rem' }}>
+              <div style={{ padding: '1rem', background: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
+                <h3 className="font-bold" style={{ fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <i className="ri-time-line text-blue-primary"></i> 시간별 상태 변화 로그
+                </h3>
+              </div>
+              <div style={{ padding: '1rem', overflowY: 'auto', flex: 1, backgroundColor: '#fff' }}>
+                {timelineLog.length === 0 ? <p className="text-sm text-gray">기록이 없습니다.</p> : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {timelineLog.map((log, i) => (
+                      <div key={i} className="flex gap-2 items-start">
+                        <span className="badge-tag" style={{ background: '#e2e8f0', color: '#475569', fontSize: '0.7rem' }}>{log.time}</span>
+                        <span className="text-sm" style={{ color: '#333' }}>{log.msg}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-          )
-        )}
 
-        {activeTab === 'history' && (
-          <section className="fade-in card">
-            <h2 className="section-title"><i className="ri-history-line text-blue-primary"></i> 내 인계 기록</h2>
-            <div className="p-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
-              <p className="text-gray mb-2">과거 평가 기록을 조회하는 기능은 DB 연결 후 제공됩니다.</p>
-              <button className="btn btn-primary btn-sm"><i className="ri-refresh-line"></i> 기록 동기화</button>
+            {/* Live Hospital Dashboard */}
+            {rankedHospitals.length > 0 && currentStep >= 3 && (
+              <HospitalDashboard hospitals={rankedHospitals} />
+            )}
+            
+            {/* SBAR Output only visible on Step 5 */}
+            {currentStep === 5 && extendedData && (
+              <PatientSummary data={assessmentData} extData={extendedData} triage={triageResult!} />
+            )}
+
+            <div className="text-center mt-4">
+              <button className="btn" style={{ background: '#f1f5f9', color: '#475569', width: '100%' }} onClick={resetFlow}>
+                <i className="ri-refresh-line"></i> 처음부터 다시 평가하기
+              </button>
             </div>
-          </section>
-        )}
+          </div>
+        </div>
+      )}
 
-        {activeTab === 'guidelines' && (
-          <section className="fade-in">
-            <DiseaseTabs />
-          </section>
-        )}
-      </div>
+      {activeTab === 'history' && (
+        <div className="card text-center" style={{ padding: '4rem 2rem' }}>
+          <i className="ri-database-2-line" style={{ fontSize: '3rem', color: '#cbd5e1' }}></i>
+          <h2 className="mt-4 font-bold text-gray">과거 기록 조회</h2>
+          <p className="text-sm text-gray mt-2">이 기능은 실제 서버 배포 후 활성화됩니다.</p>
+        </div>
+      )}
     </div>
   );
 }
