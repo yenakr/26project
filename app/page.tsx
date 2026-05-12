@@ -37,7 +37,9 @@ export default function Home() {
     setTriageResult(triage);
     
     if (triage.level < 4 || data.complaints["심정지/무반응"]?.length > 0) {
-      setRankedHospitals(rankHospitals(data, triage, mockHospitals));
+      // Filter by Region
+      const regionHospitals = mockHospitals.filter(h => h.sido === extData.region.sido);
+      setRankedHospitals(rankHospitals(data, triage, regionHospitals));
     } else {
       setRankedHospitals([]);
     }
@@ -81,7 +83,7 @@ export default function Home() {
             </div>
             <div className="title">
               <h1 style={{ marginBottom: 0 }}>CODE BLUE</h1>
-              <p>병원 전 응급환자 전문 의사결정 지원 시스템</p>
+              <p>전국 확장형 프로토타입 · 실시간 병상 미연동 · 이송 전 병원 확인 필요</p>
             </div>
           </div>
           
@@ -156,7 +158,7 @@ export default function Home() {
             )}
 
             {/* Live Hospital Dashboard */}
-            {rankedHospitals.length > 0 && triageResult && (
+            {triageResult && (triageResult.level < 4 || assessmentData?.complaints["심정지/무반응"]?.length > 0) && (
               <HospitalDashboard hospitals={rankedHospitals} />
             )}
 
@@ -202,6 +204,14 @@ export default function Home() {
           <p className="text-sm text-gray mt-2">이 기능은 실제 서버 배포 후 활성화됩니다.</p>
         </div>
       )}
+
+      {/* Footer Disclaimer */}
+      <footer style={{ marginTop: '2rem', padding: '1.5rem', background: '#f8fafc', borderTop: '1px solid var(--border-color)', borderRadius: '12px' }}>
+        <p className="text-sm text-center" style={{ color: '#64748b', lineHeight: '1.5' }}>
+          <i className="ri-error-warning-line"></i> 본 프로토타입의 병원 추천은 응급의료기관 기본정보와 위치 기반 후보 제시에 한정됩니다. <br className="hidden sm:block"/>
+          실시간 병상 및 수용 가능 여부는 제공하지 않으며, 실제 이송 전 병원 확인이 필요합니다.
+        </p>
+      </footer>
     </div>
   );
 }

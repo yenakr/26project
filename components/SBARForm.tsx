@@ -34,6 +34,7 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
   };
 
   // Form States
+  const [region, setRegion] = useState({ sido: "서울특별시", sigungu: "" });
   const [scene, setScene] = useState({ safety: "", risks: [] as string[], patients: "", support: [] as string[], access: "" });
   const [primary, setPrimary] = useState({ consciousness: "", breathing: "", circulation: "", actions: [] as string[] });
   const [complaints, setComplaints] = useState<Record<string, string[]>>(Object.keys(CHIEF_COMPLAINT_OPTIONS).reduce((acc, key) => ({ ...acc, [key]: [] }), {}));
@@ -46,12 +47,13 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
   const [history, setHistory] = useState<any[]>([]);
 
   const saveHistory = () => {
-    setHistory(prev => [...prev, { scene, primary, complaints, customComplaint, sample, vitals, timeline }]);
+    setHistory(prev => [...prev, { region, scene, primary, complaints, customComplaint, sample, vitals, timeline }]);
   };
 
   const handleUndo = () => {
     if (history.length === 0) return;
     const lastState = history[history.length - 1];
+    setRegion(lastState.region);
     setScene(lastState.scene);
     setPrimary(lastState.primary);
     setComplaints(lastState.complaints);
@@ -66,7 +68,7 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
       primary: lastState.primary, complaints: lastState.complaints,
       vitals: { sbp: lastState.vitals.sbp, dbp: lastState.vitals.dbp, hr: lastState.vitals.hr, spo2: lastState.vitals.spo2, nrs: lastState.vitals.nrs }
     };
-    onLiveUpdate(data, { scene: lastState.scene, sample: lastState.sample, customComplaint: lastState.customComplaint }, lastState.timeline);
+    onLiveUpdate(data, { region: lastState.region, scene: lastState.scene, sample: lastState.sample, customComplaint: lastState.customComplaint }, lastState.timeline);
   };
 
   useEffect(() => {
@@ -79,7 +81,7 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
       primary, complaints,
       vitals: { sbp: vitals.sbp, dbp: vitals.dbp, hr: vitals.hr, spo2: vitals.spo2, nrs: vitals.nrs }
     };
-    const extData = { scene, sample, customComplaint };
+    const extData = { region, scene, sample, customComplaint };
     onLiveUpdate(data, extData, currentTimeline);
   };
 
@@ -133,6 +135,38 @@ export default function SBARForm({ onLiveUpdate, onComplete }: SBARFormProps) {
   return (
     <div style={{ position: 'relative' }}>
       
+      {/* Step 0: Region Selection */}
+      <div className="card" style={{ paddingBottom: '1rem' }}>
+        <h2 className="section-title"><i className="ri-road-map-line text-blue-primary"></i> 0. 현장 지역 설정</h2>
+        <div className="grid-2">
+          <div>
+            <label className="text-xs font-bold text-gray">시·도</label>
+            <select 
+              className="form-input mt-1" 
+              value={region.sido}
+              onChange={(e) => {saveHistory(); setRegion(p => ({...p, sido: e.target.value})); setTimeout(() => triggerUpdate(), 0); logEvent(`현장 지역 설정: ${e.target.value}`);}}
+            >
+              <option value="서울특별시">서울특별시</option>
+              <option value="경기도">경기도</option>
+              <option value="인천광역시">인천광역시</option>
+              <option value="강원특별자치도">강원특별자치도</option>
+              <option value="충청북도">충청북도</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray">시·군·구</label>
+            <input 
+              type="text" 
+              className="form-input mt-1" 
+              placeholder="예: 성동구, 수원시" 
+              value={region.sigungu}
+              onChange={(e) => {saveHistory(); setRegion(p => ({...p, sigungu: e.target.value})); setTimeout(() => triggerUpdate(), 0);}}
+              onBlur={() => {if(region.sigungu) logEvent(`현장 지역 설정: ${region.sido} ${region.sigungu}`);}}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Step 1: Scene Size-up */}
       <div id="step-1" className="card">
         <h2 className="section-title"><i className="ri-map-pin-line text-blue-primary"></i> 1. 현장 상황 확인</h2>
