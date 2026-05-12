@@ -69,5 +69,6 @@ model EmergencyRecord {
   preKtas        String?
   logs           Json?    // Detailed audit log entries
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   user           User?    @relation(fields: [userId], references: [id])
 }

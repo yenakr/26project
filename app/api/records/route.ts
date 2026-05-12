@@ -60,7 +60,6 @@ export async function GET(request: Request) {
     const safeRecords = records.map(r => ({
       ...r,
       createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
     }));
 
     return NextResponse.json({ success: true, records: safeRecords });
