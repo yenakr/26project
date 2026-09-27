@@ -35,17 +35,14 @@ export function AttendanceSourceModal({
         </button>
 
         {/* Modal Header */}
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2.5 mb-3">
           <div className="p-2 bg-slate-900 text-white rounded-xl">
             <MessageSquare className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-base font-extrabold text-slate-900">
-              출석 집계 원문 확인 ({memberName} · {monthNum}월 {day}일)
+              원문 확인 · {memberName} ({monthNum}월 {day}일)
             </h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              <strong>{memberName}</strong>의 {monthNum}월 {day}일 출석은 아래 메시지를 기준으로 집계되었습니다.
-            </p>
           </div>
         </div>
 
@@ -62,10 +59,10 @@ export function AttendanceSourceModal({
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
                     {src.decisionType === 'auto'
-                      ? '자동 집계 (확실한 출석)'
+                      ? '자동'
                       : src.decisionType === 'review'
-                      ? '검토 후 승인'
-                      : '수동 입력'}
+                      ? '검토'
+                      : '수동'}
                   </span>
                 </div>
 
@@ -83,7 +80,7 @@ export function AttendanceSourceModal({
           ) : (
             <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200/80 text-center text-xs text-slate-500 space-y-2">
               <Info className="w-6 h-6 text-slate-400 mx-auto" />
-              <p className="font-medium text-slate-700">카카오톡 원문 정보가 없거나 수동으로 추가된 출석입니다.</p>
+              <p className="font-medium text-slate-700">수동으로 추가된 출석 기록입니다.</p>
             </div>
           )}
         </div>
@@ -100,7 +97,7 @@ export function AttendanceSourceModal({
             className="px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-xl transition flex items-center gap-1"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>이 날짜 출석 삭제</span>
+            <span>삭제</span>
           </button>
 
           <button

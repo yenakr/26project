@@ -196,21 +196,21 @@ export function AttendanceTable({
               setIsEditMode(!isEditMode);
               if (isEditMode) setEditingCell(null);
             }}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs ${
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-xs ${
               isEditMode
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-300'
+                ? 'bg-slate-900 text-white ring-2 ring-slate-400'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80'
             }`}
           >
             {isEditMode ? (
               <>
                 <Check className="w-3.5 h-3.5" />
-                <span>수정 완료</span>
+                <span>완료</span>
               </>
             ) : (
               <>
                 <Edit2 className="w-3.5 h-3.5" />
-                <span>수정 모드 켜기</span>
+                <span>- 수정</span>
               </>
             )}
           </button>
@@ -295,11 +295,7 @@ export function AttendanceTable({
 
         {/* Edit Mode Controls */}
         {isEditMode && (
-          <div className="flex items-center gap-2 pt-2 border-t border-emerald-100 bg-emerald-50/40 p-2.5 rounded-xl border animate-in fade-in duration-150 flex-wrap">
-            <span className="text-xs font-bold text-emerald-800 mr-auto flex items-center gap-1">
-              ✏️ 수정 모드 작동 중 (셀 클릭 시 즉시 편집 가능)
-            </span>
-
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 p-2.5 rounded-xl bg-slate-50 border animate-in fade-in duration-150 flex-wrap">
             <button
               onClick={onOpenMergeModal}
               className="py-1.5 px-3 bg-white hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg border border-slate-200 shadow-2xs flex items-center gap-1 transition"

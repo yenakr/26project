@@ -189,6 +189,11 @@ export default function Home() {
     if (nextQueue.length === 0) setIsReviewModalOpen(false);
   };
 
+  const handleDiscardAllReviewItems = () => {
+    setReviewItems([]);
+    setIsReviewModalOpen(false);
+  };
+
   const handleSelectDatePill = (member: Member, monthKey: string, day: string) => {
     setSelectedDateSource({ member, monthKey, day });
   };
@@ -342,18 +347,16 @@ export default function Home() {
           <>
             {/* Review Needed Queue Banner */}
             {reviewItems.length > 0 && (
-              <div className="bg-slate-900 text-white rounded-2xl p-4 mb-5 flex items-center justify-between shadow-xs animate-in fade-in duration-200">
-                <div className="flex items-center gap-2 text-xs">
-                  <HelpCircle className="w-4.5 h-4.5 text-amber-400 shrink-0" />
-                  <span>
-                    출석 검토 필요 메시지 <strong>{reviewItems.length}건</strong>이 있습니다. 대화 원문 확인 후 반영할 회원만 체크하여 반영할 수 있습니다.
-                  </span>
+              <div className="bg-slate-900 text-white rounded-2xl p-3.5 mb-5 flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <HelpCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>검토 필요 메시지 {reviewItems.length}건</span>
                 </div>
                 <button
                   onClick={() => setIsReviewModalOpen(true)}
-                  className="px-3.5 py-1.5 bg-white text-slate-900 text-xs font-extrabold rounded-xl hover:bg-slate-100 transition shadow-2xs cursor-pointer shrink-0"
+                  className="px-3.5 py-1.5 bg-white text-slate-900 text-xs font-bold rounded-xl hover:bg-slate-100 transition shadow-2xs cursor-pointer shrink-0"
                 >
-                  검토하기
+                  검토
                 </button>
               </div>
             )}
@@ -410,6 +413,7 @@ export default function Home() {
           members={members}
           onApplyReviewItem={handleApplyReviewItem}
           onDiscardReviewItem={handleDiscardReviewItem}
+          onDiscardAllReviewItems={handleDiscardAllReviewItems}
           onClose={() => setIsReviewModalOpen(false)}
         />
       )}

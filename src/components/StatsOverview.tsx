@@ -43,12 +43,12 @@ export function StatsOverview({
 
   const avgAttendance = totalMembers > 0 ? (totalAttendancesSum / totalMembers).toFixed(1) : '0';
 
-  const periodLabel = selectedMonth === '전체' ? currentSemesterObj.name : `${currentSemesterObj.name} (${selectedMonth})`;
+  const periodLabel = selectedMonth === '전체' ? currentSemesterObj.name : `${currentSemesterObj.name} ${selectedMonth}`;
 
   return (
     <div className="space-y-1.5 mb-5">
       <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
-        📊 {periodLabel} 출석 현황 요약
+        출석 현황 · {periodLabel}
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">

@@ -27,7 +27,14 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
 
   const dateHeaderRegex = /^---+ (\d{4})년 (\d{1,2})월 (\d{1,2})일\s*([월화수목금토일]요일)? ---+/;
   const simpleDateHeaderRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*([월화수목금토일]요일))?/;
-  const kakaoMsgRegex = /^\[(.+?)\]\s*\[(오전|오후)\s*(\d{1,2}:\d{2})\]\s*(.*)$/;
+  const dotDateHeaderRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*$/;
+
+  // KakaoTalk Line Format 1: 2026. 9. 15. 오후 9:55, 유지훈 Hun : @태그들...
+  const kakaoFullLineRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}:\d{2}),?\s*(.+?)\s*:\s*(.*)$/;
+  
+  // KakaoTalk Line Format 2: [유지훈 Hun] [오후 9:55] @태그들...
+  const kakaoBracketMsgRegex = /^\[(.+?)\]\s*\[(오전|오후)\s*(\d{1,2}:\d{2})\]\s*(.*)$/;
+
   const userJoinedRegex = /(.+?)님이 들어왔습니다\./;
   const userLeftRegex = /(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./;
 
@@ -35,7 +42,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     const trimmed = line.trim();
     if (!trimmed) return;
 
-    // Date header (KakaoTalk export format: --------------- 2026년 9월 18일 금요일 ---------------)
+    // Check Header line formats
     const headerMatch = trimmed.match(dateHeaderRegex) || trimmed.match(simpleDateHeaderRegex);
     if (headerMatch) {
       currentYear = headerMatch[1].slice(2);
@@ -46,23 +53,44 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
       return;
     }
 
-    const fullYearStr = `20${currentYear}`;
-    const isoDateStr = `${fullYearStr}-${currentMonth.padStart(2, '0')}-${currentDay.padStart(2, '0')}`;
+    const dotHeaderMatch = trimmed.match(dotDateHeaderRegex);
+    if (dotHeaderMatch) {
+      currentYear = dotHeaderMatch[1].slice(2);
+      currentMonth = dotHeaderMatch[2];
+      currentDay = dotHeaderMatch[3];
+      currentMonthKey = `${currentYear}.${currentMonth}`;
+      return;
+    }
 
-    // Extract sender & timestamp if Kakao message format
     let senderName = '';
     let ampmStr = '오후';
     let timeStr = '12:00';
     let messageText = trimmed;
 
-    const msgMatch = trimmed.match(kakaoMsgRegex);
-    if (msgMatch) {
-      senderName = msgMatch[1].trim();
-      ampmStr = msgMatch[2];
-      timeStr = msgMatch[3];
-      messageText = msgMatch[4];
+    // Check Kakao Format 1 (Date + Time + Sender + Message in one line)
+    const fullLineMatch = trimmed.match(kakaoFullLineRegex);
+    if (fullLineMatch) {
+      currentYear = fullLineMatch[1].slice(2);
+      currentMonth = fullLineMatch[2];
+      currentDay = fullLineMatch[3];
+      currentMonthKey = `${currentYear}.${currentMonth}`;
+      ampmStr = fullLineMatch[4];
+      timeStr = fullLineMatch[5];
+      senderName = fullLineMatch[6].trim();
+      messageText = fullLineMatch[7];
+    } else {
+      // Check Kakao Format 2 ([Sender] [Time] Message)
+      const bracketMatch = trimmed.match(kakaoBracketMsgRegex);
+      if (bracketMatch) {
+        senderName = bracketMatch[1].trim();
+        ampmStr = bracketMatch[2];
+        timeStr = bracketMatch[3];
+        messageText = bracketMatch[4];
+      }
     }
 
+    const fullYearStr = `20${currentYear}`;
+    const isoDateStr = `${fullYearStr}-${currentMonth.padStart(2, '0')}-${currentDay.padStart(2, '0')}`;
     const formattedTimestampStr = `${fullYearStr}.${currentMonth.padStart(2, '0')}.${currentDay.padStart(2, '0')} · ${ampmStr} ${timeStr}`;
     const formattedFullDateStr = `${fullYearStr}년 ${currentMonth}월 ${currentDay}일 ${currentDayOfWeek ? currentDayOfWeek + ' ' : ''}${ampmStr} ${timeStr}`;
 
@@ -144,7 +172,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
             candidates: validMentionsInLine.map((name) => ({ name, isSelected: true }))
           });
 
-          // Also keep in unmatchedTags for fallback compatibility if needed
           if (validMentionsInLine.length === 1) {
             unmatchedTags.push({
               id: String(Date.now() + Math.random()),
