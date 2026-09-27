@@ -62,18 +62,28 @@ export function AttendanceTable({
     });
   });
 
-  // HIDE FUTURE EMPTY MONTHS: Filter months to show only those with data or current active months
   let displayMonths = semesterMonthKeys.filter(
     (mk) => monthsWithData.has(mk) || mk === '26.9' || mk === '26.10'
   );
   if (displayMonths.length === 0) {
-    displayMonths = semesterMonthKeys.slice(0, 2); // Show at least 2 months
+    displayMonths = semesterMonthKeys.slice(0, 4);
   }
 
   const activeMonths = selectedMonth === '전체' ? displayMonths : [selectedMonth];
 
+  // Filter members based on semester active dates (joinDate & leaveDate)
+  const semesterFilteredMembers = members.filter((m) => {
+    if (m.joinDate && m.joinDate > currentSemesterObj.endDate) {
+      return false; // Member joined after semester ended
+    }
+    if (m.leaveDate && m.leaveDate < currentSemesterObj.startDate) {
+      return false; // Member left before semester started
+    }
+    return true;
+  });
+
   // Name search filter
-  const searchFiltered = members.filter((m) => {
+  const searchFiltered = semesterFilteredMembers.filter((m) => {
     if (searchTerm.trim() && !m.name.includes(searchTerm.trim())) return false;
     return true;
   });
@@ -94,7 +104,6 @@ export function AttendanceTable({
     }
   };
 
-  // Helper to format month header label (e.g., '26.9' -> '9월', '26.10' -> '10월')
   const formatMonthHeader = (monthKey: string) => {
     const parts = monthKey.split('.');
     if (parts.length === 2) {
@@ -243,11 +252,11 @@ export function AttendanceTable({
           </div>
         </div>
 
-        {/* Edit Mode Control Buttons (Only visible in Edit Mode) */}
+        {/* Edit Mode Controls */}
         {isEditMode && (
           <div className="flex items-center gap-2 pt-2 border-t border-emerald-100 bg-emerald-50/40 p-2.5 rounded-xl border animate-in fade-in duration-150">
             <span className="text-xs font-bold text-emerald-800 mr-auto flex items-center gap-1">
-              ✏️ 수정 모드 작동 중 (셀 클릭 시 즉시 편집)
+              ✏️ 수정 모드 작동 중 (셀 클릭 시 즉시 편집 가능)
             </span>
 
             <button
@@ -275,7 +284,7 @@ export function AttendanceTable({
         )}
       </div>
 
-      {/* ---------------- MINIMAL CLEAN TABLE VIEW ---------------- */}
+      {/* ---------------- DUAL STICKY TABLE VIEW (REQUIREMENT 5) ---------------- */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
           <table className="w-full text-left text-xs border-collapse">
@@ -283,11 +292,12 @@ export function AttendanceTable({
               <tr className="bg-slate-50/90 text-slate-600 font-bold border-b border-slate-200/80">
                 <th className="py-3.5 px-3 text-center border-r border-slate-200/60 w-10 text-slate-400">#</th>
                 
-                {/* Sticky Name Header Column */}
+                {/* 1. Left Sticky Column: Name */}
                 <th className="py-3.5 px-4 border-r border-slate-200/80 text-slate-900 sticky left-0 bg-slate-100 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] min-w-[90px]">
                   이름
                 </th>
 
+                {/* 2. Middle Scrollable Month Columns */}
                 {selectedMonth === '전체' ? (
                   displayMonths.map((m) => (
                     <th key={m} className="py-3.5 px-4 border-r border-slate-200/60 min-w-[140px]">
@@ -300,10 +310,15 @@ export function AttendanceTable({
                   </th>
                 )}
 
-                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center font-extrabold text-slate-900 w-20 bg-slate-100/60">
+                {/* 3. Right Sticky Column: Total Count */}
+                <th className="py-3.5 px-4 border-r border-slate-200/80 text-center font-extrabold text-slate-900 w-20 sticky right-[115px] bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                   합계
                 </th>
-                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center min-w-[120px]">달성 상태</th>
+
+                {/* 4. Right Sticky Column: Status */}
+                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center min-w-[115px] sticky right-0 bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
+                  달성 상태
+                </th>
 
                 {/* Edit Column Header */}
                 {isEditMode && <th className="py-3.5 px-3 text-center w-16 text-slate-400">삭제</th>}
@@ -321,12 +336,12 @@ export function AttendanceTable({
                       {index + 1}
                     </td>
 
-                    {/* Sticky Body Name Cell */}
+                    {/* Left Sticky Body Cell: Name */}
                     <td className="py-3 px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                       {member.name}
                     </td>
 
-                    {/* Monthly Attendance Cells */}
+                    {/* Middle Scrollable Month Cells */}
                     {selectedMonth === '전체' ? (
                       displayMonths.map((mKey) => {
                         const daysValue = member.attendances[mKey] || '';
@@ -413,13 +428,13 @@ export function AttendanceTable({
                       </td>
                     )}
 
-                    {/* Total Count */}
-                    <td className="py-3 px-4 text-center font-extrabold text-slate-900 border-r border-slate-100 bg-slate-50/50 text-sm">
+                    {/* Right Sticky Body Cell: Total Count */}
+                    <td className="py-3 px-4 text-center font-extrabold text-slate-900 border-r border-slate-200/80 sticky right-[115px] bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] text-sm">
                       {totalCount}
                     </td>
 
-                    {/* Clean Status Badge: "달성 · 10회" vs "미달 · 3/4회" */}
-                    <td className="py-3 px-4 border-r border-slate-100 text-center">
+                    {/* Right Sticky Body Cell: Status */}
+                    <td className="py-3 px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${
                           isCompleted
@@ -433,7 +448,7 @@ export function AttendanceTable({
                       </span>
                     </td>
 
-                    {/* Row Delete Action */}
+                    {/* Delete Action (Edit Mode) */}
                     {isEditMode && (
                       <td className="py-3 px-3 text-center border-r border-slate-100">
                         <button
@@ -456,7 +471,7 @@ export function AttendanceTable({
               {sortedMembers.length === 0 && (
                 <tr>
                   <td colSpan={isEditMode ? 9 : 8} className="py-12 text-center text-slate-400">
-                    {searchTerm ? `'${searchTerm}' 이름 검색 결과가 없습니다.` : '크루원 데이터가 없습니다.'}
+                    {searchTerm ? `'${searchTerm}' 이름 검색 결과가 없습니다.` : '해당 학기 크루원 데이터가 없습니다.'}
                   </td>
                 </tr>
               )}
@@ -465,7 +480,7 @@ export function AttendanceTable({
         </div>
       </div>
 
-      {/* ---------------- PAST SEMESTERS HISTORICAL DATA ARCHIVE ---------------- */}
+      {/* Past Semesters Historical Data Accordion */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <button
           onClick={() => setShowPastArchives(!showPastArchives)}
@@ -481,11 +496,11 @@ export function AttendanceTable({
         {showPastArchives && (
           <div className="p-4 border-t border-slate-100 bg-slate-50/50 space-y-3 animate-in fade-in duration-200">
             <p className="text-xs text-slate-500">
-              과거 학기별 참석 기록입니다. 상단 학기 탭에서 전환하시면 해당 학기의 출석 일자를 상세 조회할 수 있습니다.
+              과거 학기별 참석 기록입니다. 학기를 선택하시면 해당 학기의 출석 일자를 상세 조회할 수 있습니다.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {DEFAULT_SEMESTERS.filter((s) => !s.isCurrent).map((pastSem) => (
+              {DEFAULT_SEMESTERS.filter((s) => s.id !== selectedSemesterId).map((pastSem) => (
                 <div
                   key={pastSem.id}
                   onClick={() => {

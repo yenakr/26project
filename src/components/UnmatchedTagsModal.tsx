@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertTriangle, ArrowRight, Check } from 'lucide-react';
+import { X, AlertTriangle, Check } from 'lucide-react';
 import { UnmatchedTag, Member } from '../types/attendance';
 
 interface UnmatchedTagsModalProps {
@@ -33,27 +33,27 @@ export function UnmatchedTagsModal({
         </div>
 
         <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-          카카오톡 태그 중 공백이 포함되어 짧게 잘린 태그 목록입니다. 해당 회원의 실명으로 변경하시거나 전체 크루원 명단을 입력하시면 자동으로 교정됩니다.
+          규칙 점수제 검증에서 문맥 점수가 애매하거나(0~1점) 공백 태그로 감지된 항목입니다. 올바른 크루원 이름으로 수정하시거나 명단을 불러오시면 자동 반영됩니다.
         </p>
 
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {unmatchedTags.map((tag) => (
             <div key={tag.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 text-xs space-y-2">
               <div className="flex items-center justify-between font-bold text-slate-900">
-                <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                  잘못 추출됨: &apos;{tag.extractedName}&apos;
+                <span className="text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
+                  태그명: &apos;{tag.extractedName}&apos; (점수: {tag.score}점)
                 </span>
                 <span className="text-[11px] text-slate-400">{tag.date}</span>
               </div>
 
               <div className="text-[11px] text-slate-600 font-mono bg-white p-2 rounded border border-slate-200/60 truncate">
-                원문: @{tag.rawMention}
+                원문: {tag.lineText}
               </div>
 
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="text"
-                  placeholder="올바른 이름 입력 (예: 이태윤)"
+                  placeholder="올바른 회원명 입력 (예: 이태윤)"
                   id={`tag-input-${tag.id}`}
                   className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-slate-900"
                 />
