@@ -35,12 +35,16 @@ export default function Home() {
     day: string;
   } | null>(null);
 
+  const filterValidMembers = (mList: Member[]) =>
+    mList.filter((m) => !/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡)$/i.test(m.name.trim()));
+
   // Load stored state
   useEffect(() => {
     const saved = localStorage.getItem('crew_attendance_minimal_v2');
     if (saved) {
       try {
-        setMembers(JSON.parse(saved));
+        const parsed: Member[] = JSON.parse(saved);
+        setMembers(filterValidMembers(parsed));
       } catch {
         setMembers([]);
       }
@@ -49,8 +53,9 @@ export default function Home() {
 
   // Save state
   const saveState = (newMembers: Member[]) => {
-    setMembers(newMembers);
-    localStorage.setItem('crew_attendance_minimal_v2', JSON.stringify(newMembers));
+    const valid = filterValidMembers(newMembers);
+    setMembers(valid);
+    localStorage.setItem('crew_attendance_minimal_v2', JSON.stringify(valid));
   };
 
   const handleFileUpload = (file: File) => {

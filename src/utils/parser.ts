@@ -254,9 +254,9 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     }
   });
 
-  const sortedMembers = Array.from(memberMap.values()).sort((a, b) =>
-    a.name.localeCompare(b.name, 'ko')
-  );
+  const sortedMembers = Array.from(memberMap.values())
+    .filter((m) => !/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(m.name))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 
   return {
     members: sortedMembers,
@@ -280,7 +280,7 @@ function isRetrospectiveMessage(text: string): boolean {
 function isNonMemberHandle(segment: string, lineText: string, registeredNames: string[]): boolean {
   const token = segment.split(/\s+/)[0].trim();
 
-  if (/^(all|garmin_korea|official|wtdeyewear|bushman_life)$/i.test(token)) {
+  if (/^(all|garmin_korea|official|wtdeyewear|bushman_life|멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡)$/i.test(token)) {
     return true;
   }
 
@@ -334,7 +334,9 @@ export function parseRosterText(rosterText: string, currentMembers: Member[]): M
     }
   });
 
-  return Array.from(existingMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  return Array.from(existingMap.values())
+    .filter((m) => !/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡)$/i.test(m.name))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 }
 
 function cleanMemberName(raw: string): string {
@@ -343,6 +345,10 @@ function cleanMemberName(raw: string): string {
     .replace(/ Hun$/, '')
     .replace(/님$/, '')
     .trim();
+
+  if (/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(cleaned)) {
+    return '';
+  }
 
   const words = cleaned.split(/\s+/);
   if (words.length > 1) {
