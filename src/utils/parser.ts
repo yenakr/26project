@@ -188,22 +188,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
         }
       });
 
-      // Auto-include message sender if sender is valid and not already tagged in the message
-      if (senderName) {
-        const registeredNames = Array.from(memberMap.keys()).sort((a, b) => b.length - a.length);
-        const longestMatchSender = findLongestMatchingMember(senderName, registeredNames);
-        const cleanSender = longestMatchSender || cleanMemberName(senderName);
-
-        if (
-          cleanSender &&
-          cleanSender.length >= 2 &&
-          !/^(카카오톡|알림|방장|운영진|관리자|bot|system)$/i.test(cleanSender) &&
-          !validMentionsInLine.includes(cleanSender)
-        ) {
-          validMentionsInLine.unshift(cleanSender);
-        }
-      }
-
       if (validMentionsInLine.length > 0) {
         const isFutureOrQuestion = isQuestionOrFutureMessage(messageText);
         const isRetrospective = isRetrospectiveMessage(messageText);
@@ -238,6 +222,23 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
         }
         // Tier 1: Definite Attendance (확실한 출석)
         else {
+          // Post-processing: Add sender to attendance list ONLY IF message is confirmed definite attendance
+          if (senderName) {
+            const registeredNames = Array.from(memberMap.keys()).sort((a, b) => b.length - a.length);
+            const longestMatchSender = findLongestMatchingMember(senderName, registeredNames);
+            const cleanSender = longestMatchSender || cleanMemberName(senderName);
+
+            if (
+              cleanSender &&
+              cleanSender.length >= 2 &&
+              !isNonMemberName(cleanSender) &&
+              !isMojibakeName(cleanSender) &&
+              !validMentionsInLine.includes(cleanSender)
+            ) {
+              validMentionsInLine.push(cleanSender);
+            }
+          }
+
           parsedLogsCount++;
           const sourceObj: AttendanceSource = {
             id: String(Date.now() + Math.random()),
