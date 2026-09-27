@@ -38,8 +38,10 @@ export default function Home() {
   };
 
   const handleFileUpload = (file: File) => {
-    if (!file.name.endsWith('.txt')) {
-      alert('카카오톡 대화록 (.txt) 파일만 업로드 가능합니다.');
+    // Mobile file picker fallback check (allow .txt or text/plain or files containing text)
+    const isTxt = file.name.endsWith('.txt') || file.type.startsWith('text/') || file.type === '';
+    if (!isTxt) {
+      alert('텍스트 (.txt) 파일만 업로드 가능합니다.');
       return;
     }
 
@@ -151,21 +153,21 @@ export default function Home() {
                   카카오톡 대화록 파일 선택
                 </h2>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  카톡 대화 내용 텍스트 파일(.txt)을 이곳에 드래그하여 올려주세요.
+                  카톡 대화 내용 텍스트 파일(.txt)을 선택하거나 드래그하여 올려주세요.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <input
                   type="file"
-                  accept=".txt"
+                  accept=".txt,text/plain,text/*,*/*"
                   onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                   className="hidden"
                   id="main-file-input"
                 />
                 <label
                   htmlFor="main-file-input"
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs cursor-pointer transition flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-semibold text-xs rounded-xl shadow-xs cursor-pointer transition flex items-center gap-1.5 touch-manipulation"
                 >
                   <Upload className="w-4 h-4" />
                   카톡 txt 불러오기
@@ -173,7 +175,7 @@ export default function Home() {
 
                 <button
                   onClick={() => setIsRosterImportOpen(true)}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs rounded-xl transition flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition flex items-center gap-1.5 touch-manipulation"
                 >
                   <UserPlus className="w-4 h-4 text-slate-600" />
                   전체 명단 불러오기

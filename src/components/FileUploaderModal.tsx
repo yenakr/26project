@@ -15,8 +15,9 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
   const [fileName, setFileName] = useState<string>('');
 
   const handleFile = (file: File) => {
-    if (!file.name.endsWith('.txt')) {
-      alert('카카오톡 대화록 (.txt) 파일만 업로드 가능합니다.');
+    const isTxt = file.name.endsWith('.txt') || file.type.startsWith('text/') || file.type === '';
+    if (!isTxt) {
+      alert('텍스트 (.txt) 파일만 업로드 가능합니다.');
       return;
     }
     setFileName(file.name);
@@ -68,19 +69,19 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
               <Upload className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">.txt 파일 드래그 & 드롭</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">또는 컴퓨터에서 파일 선택</p>
+              <p className="text-xs font-bold text-slate-900">.txt 파일 선택 또는 드래그</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">카카오톡 내보내기 텍스트 파일</p>
             </div>
             <input
               type="file"
-              accept=".txt"
+              accept=".txt,text/plain,text/*,*/*"
               onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               className="hidden"
               id="txt-modal-input"
             />
             <label
               htmlFor="txt-modal-input"
-              className="mt-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs cursor-pointer transition"
+              className="mt-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow-xs cursor-pointer transition touch-manipulation"
             >
               파일 선택
             </label>

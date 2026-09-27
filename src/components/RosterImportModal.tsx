@@ -58,10 +58,10 @@ export function RosterImportModal({ onImportNames, onClose }: RosterImportModalP
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-slate-700">명단 텍스트 입력</label>
-              <label className="text-xs text-slate-500 hover:text-slate-900 cursor-pointer font-medium flex items-center gap-1">
+              <label className="text-xs text-slate-500 hover:text-slate-900 cursor-pointer font-medium flex items-center gap-1 touch-manipulation">
                 <FileText className="w-3.5 h-3.5" />
                 <span>.txt 파일 선택</span>
-                <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" />
+                <input type="file" accept=".txt,text/plain,text/*,*/*" onChange={handleFileUpload} className="hidden" />
               </label>
             </div>
             <textarea
