@@ -11,6 +11,7 @@ import { RosterImportModal } from '../components/RosterImportModal';
 import { MemberModal } from '../components/MemberModal';
 import { ReviewNeededModal } from '../components/ReviewNeededModal';
 import { AttendanceSourceModal } from '../components/AttendanceSourceModal';
+import { MergeMembersModal } from '../components/MergeMembersModal';
 
 export default function Home() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -18,10 +19,15 @@ export default function Home() {
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
+  // Semester & Month state for dynamic KPI stats
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>('2026-2');
+  const [selectedMonth, setSelectedMonth] = useState<string>('전체');
+
   // Modals
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [isRosterImportOpen, setIsRosterImportOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null | 'new'>(null);
   const [selectedDateSource, setSelectedDateSource] = useState<{
     member: Member;
@@ -70,6 +76,55 @@ export default function Home() {
   const handleRosterImport = (rosterText: string) => {
     const updated = parseRosterText(rosterText, members);
     saveState(updated);
+  };
+
+  // Merge Members Handler
+  const handleMergeMembers = (sourceId: string, targetId: string) => {
+    const sourceMember = members.find((m) => m.id === sourceId);
+    const targetMember = members.find((m) => m.id === targetId);
+
+    if (!sourceMember || !targetMember) return;
+
+    // Combine attendances
+    const mergedAttendances: Record<string, string> = { ...targetMember.attendances };
+    Object.entries(sourceMember.attendances).forEach(([monthKey, sourceDaysStr]) => {
+      const targetDaysStr = mergedAttendances[monthKey] || '';
+      const combinedDays = Array.from(
+        new Set([
+          ...targetDaysStr.split(',').map((s) => s.trim()).filter(Boolean),
+          ...sourceDaysStr.split(',').map((s) => s.trim()).filter(Boolean)
+        ])
+      ).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+      mergedAttendances[monthKey] = combinedDays.join(', ');
+    });
+
+    // Combine sources metadata
+    const mergedSources: Record<string, AttendanceSource[]> = targetMember.sources ? { ...targetMember.sources } : {};
+    if (sourceMember.sources) {
+      Object.entries(sourceMember.sources).forEach(([dayKey, sourceList]) => {
+        if (!mergedSources[dayKey]) mergedSources[dayKey] = [];
+        sourceList.forEach((src) => {
+          if (!mergedSources[dayKey].some((existing) => existing.message === src.message)) {
+            mergedSources[dayKey].push(src);
+          }
+        });
+      });
+    }
+
+    const updatedTarget: Member = {
+      ...targetMember,
+      attendances: mergedAttendances,
+      sources: mergedSources,
+      joinDate: targetMember.joinDate || sourceMember.joinDate,
+      leaveDate: targetMember.leaveDate || sourceMember.leaveDate
+    };
+
+    const nextMembers = members
+      .filter((m) => m.id !== sourceId)
+      .map((m) => (m.id === targetId ? updatedTarget : m));
+
+    saveState(nextMembers);
   };
 
   // Apply Review Item (from 3-tier review queue with checkboxes)
@@ -303,17 +358,26 @@ export default function Home() {
               </div>
             )}
 
-            {/* KPI Stats */}
-            <StatsOverview members={members} />
+            {/* KPI Stats (Dynamic per Semester & Month) */}
+            <StatsOverview
+              members={members}
+              selectedSemesterId={selectedSemesterId}
+              selectedMonth={selectedMonth}
+            />
 
             {/* Attendance Table */}
             <AttendanceTable
               members={members}
+              selectedSemesterId={selectedSemesterId}
+              onSemesterChange={setSelectedSemesterId}
+              selectedMonth={selectedMonth}
+              onMonthChange={setSelectedMonth}
               onEditMember={(m) => setEditingMember(m)}
               onAddMember={() => setEditingMember('new')}
               onDeleteMember={handleDeleteMember}
               onOpenUploader={() => setIsUploaderOpen(true)}
               onOpenRosterImport={() => setIsRosterImportOpen(true)}
+              onOpenMergeModal={() => setIsMergeModalOpen(true)}
               onUpdateDays={handleUpdateDays}
               onSelectDatePill={handleSelectDatePill}
             />
@@ -347,6 +411,14 @@ export default function Home() {
           onApplyReviewItem={handleApplyReviewItem}
           onDiscardReviewItem={handleDiscardReviewItem}
           onClose={() => setIsReviewModalOpen(false)}
+        />
+      )}
+
+      {isMergeModalOpen && (
+        <MergeMembersModal
+          members={members}
+          onMergeMembers={handleMergeMembers}
+          onClose={() => setIsMergeModalOpen(false)}
         />
       )}
 
