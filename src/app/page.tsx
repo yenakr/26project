@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Download, UserPlus, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Upload, FileText, Download, UserPlus, RefreshCw, AlertCircle } from 'lucide-react';
 import { Member, ParseResult, UnmatchedTag } from '../types/attendance';
 import { parseKakaoTalkLog, parseRosterText } from '../utils/parser';
 import { StatsOverview } from '../components/StatsOverview';
@@ -62,24 +62,51 @@ export default function Home() {
   const handleRosterImport = (rosterText: string) => {
     const updated = parseRosterText(rosterText, members);
     saveState(updated);
-
-    // Re-verify unmatched tags against newly imported roster names
-    const filteredUnmatched = unmatchedTags.filter(
-      (tag) => !updated.some((m) => m.name.includes(tag.extractedName) || tag.rawMention.includes(m.name))
-    );
-    setUnmatchedTags(filteredUnmatched);
   };
 
-  const handleResolveUnmatchedTag = (extractedName: string, correctName: string) => {
-    const updated = members.map((m) => {
-      if (m.name === extractedName) {
-        return { ...m, name: correctName };
-      }
-      return m;
-    });
+  // Confirm attendance for a single tag
+  const handleConfirmAttendance = (tag: UnmatchedTag, targetName: string) => {
+    const parts = tag.date.split('.');
+    const monthKey = `${parts[0]}.${parts[1]}`;
+    const dayVal = parts[2];
 
-    saveState(updated);
-    setUnmatchedTags((prev) => prev.filter((t) => t.extractedName !== extractedName));
+    const idx = members.findIndex((m) => m.name === targetName);
+    let updatedMembers: Member[];
+
+    if (idx >= 0) {
+      updatedMembers = members.map((m) => {
+        if (m.name === targetName) {
+          const existing = m.attendances[monthKey] || '';
+          const days = existing.split(',').map((s) => s.trim()).filter(Boolean);
+          if (!days.includes(dayVal)) {
+            days.push(dayVal);
+            days.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+          }
+          return {
+            ...m,
+            attendances: { ...m.attendances, [monthKey]: days.join(', ') },
+          };
+        }
+        return m;
+      });
+    } else {
+      // Create member if new
+      const newMember: Member = {
+        id: String(Date.now()),
+        name: targetName,
+        attendances: { [monthKey]: dayVal },
+      };
+      updatedMembers = [newMember, ...members];
+    }
+
+    saveState(updatedMembers);
+    setUnmatchedTags((prev) => prev.filter((t) => t.id !== tag.id));
+    if (unmatchedTags.length <= 1) setIsUnmatchedModalOpen(false);
+  };
+
+  // Discard single tag
+  const handleDiscardTag = (tagId: string) => {
+    setUnmatchedTags((prev) => prev.filter((t) => t.id !== tagId));
     if (unmatchedTags.length <= 1) setIsUnmatchedModalOpen(false);
   };
 
@@ -200,20 +227,20 @@ export default function Home() {
           </div>
         ) : (
           <>
-            {/* Unmatched Tag Alert Banner if any */}
+            {/* Single Tag Verification Banner */}
             {unmatchedTags.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-5 flex items-center justify-between animate-in fade-in duration-200">
-                <div className="flex items-center gap-2 text-xs text-amber-900">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <div className="bg-slate-900 text-white rounded-2xl p-4 mb-5 flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 text-xs">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>
-                    확인이 필요한 이름 <strong>{unmatchedTags.length}개</strong> (예: &apos;{unmatchedTags[0].extractedName}&apos;)가 감지되었습니다.
+                    단일 태그 메시지 <strong>{unmatchedTags.length}건</strong>이 있습니다. 출석 인증인지 확인 후 집계에 반영할 수 있습니다.
                   </span>
                 </div>
                 <button
                   onClick={() => setIsUnmatchedModalOpen(true)}
-                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-2xs transition"
+                  className="px-3.5 py-1.5 bg-white text-slate-900 text-xs font-extrabold rounded-xl hover:bg-slate-100 transition shadow-2xs"
                 >
-                  확인하기
+                  확인 및 반영하기
                 </button>
               </div>
             )}
@@ -258,7 +285,8 @@ export default function Home() {
         <UnmatchedTagsModal
           unmatchedTags={unmatchedTags}
           members={members}
-          onResolveTag={handleResolveUnmatchedTag}
+          onConfirmAttendance={handleConfirmAttendance}
+          onDiscardTag={handleDiscardTag}
           onClose={() => setIsUnmatchedModalOpen(false)}
         />
       )}
