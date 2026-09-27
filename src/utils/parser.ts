@@ -25,7 +25,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   const dateHeaderRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/;
   const dateMsgRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(오전|오후)\s*(\d{1,2}):(\d{2})/;
   const userJoinedRegex = /(.+?)님이 들어왔습니다\./;
-  const userLeftRegex = /(.+?)님이 나갔습니다\./;
+  const userLeftRegex = /(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./;
 
   lines.forEach((line) => {
     const trimmed = line.trim();
@@ -52,7 +52,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     const fullYearStr = `20${currentYear}`;
     const isoDateStr = `${fullYearStr}-${currentMonth.padStart(2, '0')}-${currentDay.padStart(2, '0')}`;
 
-    // User Joined
+    // User Joined event
     const joinMatch = trimmed.match(userJoinedRegex);
     if (joinMatch) {
       const rawName = joinMatch[1].split(',').pop()?.trim() || joinMatch[1].trim();
@@ -70,7 +70,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
       }
     }
 
-    // User Left
+    // User Left / Kicked event (퇴장 감지)
     const leftMatch = trimmed.match(userLeftRegex);
     if (leftMatch) {
       const rawName = leftMatch[1].split(',').pop()?.trim() || leftMatch[1].trim();
@@ -110,7 +110,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
       });
 
       if (validMentionsInLine.length >= 2) {
-        // 2명 이상 태그 ➔ 자동 출석 인정
         parsedLogsCount++;
         validMentionsInLine.forEach((name) => {
           if (!memberMap.has(name)) {
@@ -139,13 +138,12 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
           participants: validMentionsInLine
         });
       } else if (validMentionsInLine.length === 1) {
-        // 1명만 태그된 경우 ➔ 확인 필요 목록으로 분리 (원문 전체 보존)
         const name = validMentionsInLine[0];
         unmatchedTags.push({
           id: String(Date.now() + Math.random()),
           rawMention: name,
           extractedName: name,
-          lineText: trimmed, // 원문 전체 보존
+          lineText: trimmed,
           date: `${currentYear}.${currentMonth}.${currentDay}`,
           score: 1,
           reason: '단일 태그 (확인 필요)'
