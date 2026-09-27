@@ -38,7 +38,6 @@ export default function Home() {
   };
 
   const handleFileUpload = (file: File) => {
-    // Mobile file picker fallback check (allow .txt or text/plain or files containing text)
     const isTxt = file.name.endsWith('.txt') || file.type.startsWith('text/') || file.type === '';
     if (!isTxt) {
       alert('텍스트 (.txt) 파일만 업로드 가능합니다.');
@@ -132,7 +131,7 @@ export default function Home() {
       {/* Main Body */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col">
         {members.length === 0 ? (
-          /* Initial Clean Drop Zone */
+          /* Initial Clean Drop Zone - Only txt upload */
           <div className="flex-1 flex flex-col items-center justify-center py-16">
             <div
               onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -157,7 +156,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex items-center justify-center">
                 <input
                   type="file"
                   accept=".txt,text/plain,text/*,*/*"
@@ -167,19 +166,11 @@ export default function Home() {
                 />
                 <label
                   htmlFor="main-file-input"
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-semibold text-xs rounded-xl shadow-xs cursor-pointer transition flex items-center gap-1.5 touch-manipulation"
+                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold text-sm rounded-xl shadow-xs cursor-pointer transition flex items-center gap-2 touch-manipulation"
                 >
                   <Upload className="w-4 h-4" />
                   카톡 txt 불러오기
                 </label>
-
-                <button
-                  onClick={() => setIsRosterImportOpen(true)}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-semibold text-xs rounded-xl transition flex items-center gap-1.5 touch-manipulation"
-                >
-                  <UserPlus className="w-4 h-4 text-slate-600" />
-                  전체 명단 불러오기
-                </button>
               </div>
             </div>
           </div>

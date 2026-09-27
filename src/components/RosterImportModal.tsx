@@ -68,7 +68,7 @@ export function RosterImportModal({ onImportNames, onClose }: RosterImportModalP
               rows={7}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
-              placeholder="예시:&#10;김예나&#10;유지훈&#10;이용권&#10;최은서&#10;(줄바꿈, 쉼표 구분 지원)"
+              placeholder="예시:&#10;홍길동&#10;김영희&#10;이철수&#10;(줄바꿈, 쉼표 구분 지원)"
               className="w-full p-3 text-xs border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none transition font-mono leading-relaxed"
             />
           </div>
