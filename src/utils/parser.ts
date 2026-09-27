@@ -64,13 +64,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
       const rawMentions = extractMentions(trimmed);
       if (rawMentions.length > 0) {
         parsedLogsCount++;
-
-        let eventLabel = '';
-        if (/대러리|대학러닝|대련/.test(trimmed)) eventLabel = '대러리';
-        else if (/레드불/.test(trimmed)) eventLabel = '레드불';
-        else if (/춘천/.test(trimmed)) eventLabel = '춘천';
-        else if (/YTN/.test(trimmed)) eventLabel = 'YTN';
-
         const matchedNames: string[] = [];
 
         rawMentions.forEach((mention) => {
@@ -97,10 +90,10 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
           
           const existingMonthStr = member.attendances[currentMonthKey] || '';
           const existingDays = existingMonthStr.split(',').map(s => s.trim()).filter(Boolean);
-          const dayEntry = eventLabel ? `${currentDay}(${eventLabel})` : currentDay;
 
-          if (!existingDays.some(d => d.startsWith(currentDay))) {
-            existingDays.push(dayEntry);
+          // Simple clean day number
+          if (!existingDays.includes(currentDay)) {
+            existingDays.push(currentDay);
             existingDays.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
             member.attendances[currentMonthKey] = existingDays.join(', ');
           }
@@ -109,7 +102,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
         if (matchedNames.length > 0) {
           detectedEvents.push({
             date: `${currentYear}.${currentMonth}.${currentDay}`,
-            title: eventLabel || '모임',
+            title: '모임',
             participants: matchedNames
           });
         }
@@ -129,7 +122,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
 }
 
 export function parseRosterText(rosterText: string, currentMembers: Member[]): Member[] {
-  // Split names by newlines, commas, spaces, or slashes
   const rawNames = rosterText
     .split(/[\n,\r\/;]+/)
     .map((s) => s.trim())
