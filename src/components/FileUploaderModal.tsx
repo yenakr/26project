@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, FileText, X, Check, Loader2 } from 'lucide-react';
 import { Member, ParseResult } from '../types/attendance';
-import { parseKakaoTalkLog } from '../utils/parser';
+import { parseKakaoTalkLog, decodeFileBuffer } from '../utils/parser';
 
 interface FileUploaderModalProps {
   currentMembers: Member[];
@@ -22,40 +22,15 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      let text = e.target?.result as string;
-      if (!text) {
+      const buffer = e.target?.result as ArrayBuffer;
+      if (!buffer) {
         setIsLoading(false);
-        alert('파일 내용을 읽을 수 없습니다.');
+        alert('파일을 읽을 수 없습니다.');
         return;
       }
 
-      let result = parseKakaoTalkLog(text, currentMembers);
-
-      // Mobile EUC-KR / CP949 encoding fallback
-      if ((result.members.length === 0 || text.includes('\uFFFD')) && typeof TextDecoder !== 'undefined') {
-        const fallbackReader = new FileReader();
-        fallbackReader.onload = (fe) => {
-          const buffer = fe.target?.result as ArrayBuffer;
-          if (buffer) {
-            try {
-              const eucDecoder = new TextDecoder('euc-kr');
-              const eucText = eucDecoder.decode(buffer);
-              const eucResult = parseKakaoTalkLog(eucText, currentMembers);
-              if (eucResult.members.length > 0) {
-                result = eucResult;
-              }
-            } catch {}
-          }
-          setIsLoading(false);
-          setParseResult(result);
-        };
-        fallbackReader.onerror = () => {
-          setIsLoading(false);
-          setParseResult(result);
-        };
-        fallbackReader.readAsArrayBuffer(file);
-        return;
-      }
+      const text = decodeFileBuffer(buffer);
+      const result = parseKakaoTalkLog(text, currentMembers);
 
       setIsLoading(false);
       setParseResult(result);
@@ -66,7 +41,7 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
       alert('파일을 읽는 도중 오류가 발생했습니다.');
     };
 
-    reader.readAsText(file, 'utf-8');
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {

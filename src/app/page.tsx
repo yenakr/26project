@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, HelpCircle, Loader2 } from 'lucide-react';
 import { Member, ParseResult, UnmatchedTag, ReviewItem, AttendanceSource } from '../types/attendance';
-import { parseKakaoTalkLog, parseRosterText } from '../utils/parser';
+import { parseKakaoTalkLog, parseRosterText, decodeFileBuffer, isNonMemberName, isMojibakeName } from '../utils/parser';
 import { StatsOverview } from '../components/StatsOverview';
 import { AttendanceTable } from '../components/AttendanceTable';
 import { FileUploaderModal } from '../components/FileUploaderModal';
@@ -37,7 +37,7 @@ export default function Home() {
   } | null>(null);
 
   const filterValidMembers = (mList: Member[]) =>
-    mList.filter((m) => !/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡)$/i.test(m.name.trim()));
+    mList.filter((m) => m.name && !isNonMemberName(m.name) && !isMojibakeName(m.name));
 
   // Load stored state
   useEffect(() => {
@@ -65,38 +65,25 @@ export default function Home() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      let text = e.target?.result as string;
-      if (!text) {
+      const buffer = e.target?.result as ArrayBuffer;
+      if (!buffer) {
         setIsProcessingFile(false);
-        alert('파일 내용을 읽을 수 없습니다.');
+        alert('파일을 읽을 수 없습니다.');
         return;
       }
 
-      let result: ParseResult = parseKakaoTalkLog(text, members);
+      const text = decodeFileBuffer(buffer);
+      const result: ParseResult = parseKakaoTalkLog(text, members);
 
-      // Mobile EUC-KR / CP949 encoding fallback check
-      if ((result.members.length === 0 || text.includes('\uFFFD')) && typeof TextDecoder !== 'undefined') {
-        const fallbackReader = new FileReader();
-        fallbackReader.onload = (fe) => {
-          const buffer = fe.target?.result as ArrayBuffer;
-          if (buffer) {
-            try {
-              const eucDecoder = new TextDecoder('euc-kr');
-              const eucText = eucDecoder.decode(buffer);
-              const eucResult = parseKakaoTalkLog(eucText, members);
-              if (eucResult.members.length > 0) {
-                result = eucResult;
-              }
-            } catch {}
-          }
-          finishUpload(result);
-        };
-        fallbackReader.onerror = () => finishUpload(result);
-        fallbackReader.readAsArrayBuffer(file);
+      setIsProcessingFile(false);
+      if (result.members.length === 0) {
+        alert('대화록에서 출석 태그(@이름)나 날짜를 찾지 못했습니다. 올바른 카카오톡 대화 텍스트 파일(.txt)인지 확인해 주세요.');
         return;
       }
 
-      finishUpload(result);
+      saveState(result.members);
+      setUnmatchedTags(result.unmatchedTags || []);
+      setReviewItems(result.reviewItems || []);
     };
 
     reader.onerror = () => {
@@ -104,18 +91,7 @@ export default function Home() {
       alert('파일을 읽는 도중 오류가 발생했습니다.');
     };
 
-    reader.readAsText(file, 'utf-8');
-  };
-
-  const finishUpload = (result: ParseResult) => {
-    setIsProcessingFile(false);
-    if (result.members.length === 0) {
-      alert('대화록에서 출석 태그(@이름)나 날짜를 찾지 못했습니다. 카카오톡 대화 텍스트 파일(.txt)을 확인해 주세요.');
-      return;
-    }
-    saveState(result.members);
-    setUnmatchedTags(result.unmatchedTags || []);
-    setReviewItems(result.reviewItems || []);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleRosterImport = (rosterText: string) => {

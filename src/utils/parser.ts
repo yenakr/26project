@@ -1,5 +1,39 @@
 import { Member, ParseResult, UnmatchedTag, ReviewItem, AttendanceSource } from '../types/attendance';
 
+export function decodeFileBuffer(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+
+  // Check UTF-8 BOM (0xEF, 0xBB, 0xBF)
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder('utf-8').decode(bytes.subarray(3));
+  }
+
+  // Check UTF-16 LE BOM (0xFF, 0xFE)
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return new TextDecoder('utf-16le').decode(bytes.subarray(2));
+  }
+
+  // Try decoding with UTF-8 (fatal: true forces error on EUC-KR byte sequence)
+  try {
+    const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+    const text = utf8Decoder.decode(bytes);
+
+    // If UTF-8 produced Mojibake replacement characters or garbled tokens
+    if (/[\uFFFD]/.test(text) || /(源|媛뺢만|泥웾|웾|쑁|쩰)/.test(text)) {
+      throw new Error('Mojibake detected in UTF-8');
+    }
+    return text;
+  } catch {
+    // Fallback to EUC-KR / CP949 decoding
+    try {
+      const eucDecoder = new TextDecoder('euc-kr');
+      return eucDecoder.decode(bytes);
+    } catch {
+      return new TextDecoder().decode(bytes);
+    }
+  }
+}
+
 export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []): ParseResult {
   const lines = logText.split(/\r?\n/);
   
@@ -15,11 +49,13 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
 
   // Pre-load current registered members
   currentMembers.forEach((m) => {
-    memberMap.set(m.name.trim(), {
-      ...m,
-      attendances: { ...m.attendances },
-      sources: m.sources ? { ...m.sources } : {}
-    });
+    if (m.name && !isMojibakeName(m.name)) {
+      memberMap.set(m.name.trim(), {
+        ...m,
+        attendances: { ...m.attendances },
+        sources: m.sources ? { ...m.sources } : {}
+      });
+    }
   });
 
   const detectedEvents: { date: string; title: string; participants: string[] }[] = [];
@@ -255,7 +291,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   });
 
   const sortedMembers = Array.from(memberMap.values())
-    .filter((m) => !/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(m.name))
+    .filter((m) => !isNonMemberName(m.name) && !isMojibakeName(m.name))
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 
   return {
@@ -335,7 +371,7 @@ export function parseRosterText(rosterText: string, currentMembers: Member[]): M
   });
 
   return Array.from(existingMap.values())
-    .filter((m) => !/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡)$/i.test(m.name))
+    .filter((m) => !isNonMemberName(m.name) && !isMojibakeName(m.name))
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 }
 
@@ -346,7 +382,7 @@ function cleanMemberName(raw: string): string {
     .replace(/님$/, '')
     .trim();
 
-  if (/^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(cleaned)) {
+  if (isNonMemberName(cleaned) || isMojibakeName(cleaned)) {
     return '';
   }
 
@@ -359,4 +395,15 @@ function cleanMemberName(raw: string): string {
   }
 
   return cleaned;
+}
+
+export function isNonMemberName(name: string): boolean {
+  return /^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(name.trim());
+}
+
+export function isMojibakeName(name: string): boolean {
+  if (/[\uFFFD]/.test(name)) return true;
+  if (/(源|媛뺢만|泥웾|웾|쑁|쩰)/.test(name)) return true;
+  if (/^[\u4E00-\u9FFF]{2,}/.test(name)) return true;
+  return false;
 }
