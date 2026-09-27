@@ -1,27 +1,17 @@
 import React, { useState } from 'react';
 import {
   Search,
-  Filter,
   Plus,
   Download,
   Upload,
-  RotateCcw,
   Edit2,
   Trash2,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  ChevronDown,
-  Info
+  ArrowUpDown,
+  UserPlus,
+  Filter
 } from 'lucide-react';
-import { Member, MemberTier } from '../types/attendance';
-import {
-  calculateSemesterTotal,
-  getStatusBadgeInfo,
-  getTierColorClass,
-  getTierBadge,
-  parseDaysCount
-} from '../utils/helpers';
+import { Member, SortOption } from '../types/attendance';
+import { calculateTotalForMonths, sortMembers } from '../utils/helpers';
 import { exportToExcel } from '../utils/exportExcel';
 
 interface AttendanceTableProps {
@@ -30,7 +20,7 @@ interface AttendanceTableProps {
   onAddMember: () => void;
   onDeleteMember: (id: string) => void;
   onOpenUploader: () => void;
-  onResetData: () => void;
+  onOpenRosterImport: () => void;
   onUpdateDays: (memberId: string, month: string, newDays: string) => void;
 }
 
@@ -40,40 +30,26 @@ export function AttendanceTable({
   onAddMember,
   onDeleteMember,
   onOpenUploader,
-  onResetData,
+  onOpenRosterImport,
   onUpdateDays
 }: AttendanceTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [tierFilter, setTierFilter] = useState<string>('전체');
-  const [statusFilter, setStatusFilter] = useState<string>('전체');
+  const [selectedMonth, setSelectedMonth] = useState<string>('전체');
+  const [sortOption, setSortOption] = useState<SortOption>('name_asc');
   const [editingCell, setEditingCell] = useState<{ memberId: string; month: string } | null>(null);
   const [cellValue, setCellValue] = useState('');
 
   const months = ['26.9', '26.10', '26.11', '26.12'];
+  const activeMonths = selectedMonth === '전체' ? months : [selectedMonth];
 
-  // Filter members
-  const filteredMembers = members.filter((m) => {
-    // Search name filter
+  // Search filter
+  const searchFiltered = members.filter((m) => {
     if (searchTerm && !m.name.includes(searchTerm)) return false;
-
-    // Tier filter
-    if (tierFilter !== '전체') {
-      if (tierFilter === '신입' && m.tier !== '신입') return false;
-      if (tierFilter === '정회원' && m.tier !== '정회원_1' && m.tier !== '정회원_2') return false;
-      if (tierFilter === 'OB' && m.tier !== 'OB') return false;
-    }
-
-    // Status filter
-    if (statusFilter !== '전체') {
-      const status = getStatusBadgeInfo(m).type;
-      if (statusFilter === '충족' && status !== '충족') return false;
-      if (statusFilter === '진행중' && status !== '진행중') return false;
-      if (statusFilter === '미달' && status !== '미달') return false;
-      if (statusFilter === '비활동' && !m.inactiveStatus) return false;
-    }
-
     return true;
   });
+
+  // Sort
+  const sortedMembers = sortMembers(searchFiltered, sortOption, activeMonths);
 
   const handleCellClick = (memberId: string, month: string, currentVal: string) => {
     setEditingCell({ memberId, month });
@@ -89,248 +65,263 @@ export function AttendanceTable({
 
   return (
     <div className="space-y-4">
-      {/* Controls Header */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      {/* Action Controls Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         
-        {/* Search & Filters */}
+        {/* Search, Period & Sort */}
         <div className="flex flex-wrap items-center gap-2 flex-1">
-          {/* Search */}
-          <div className="relative min-w-[180px]">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          {/* Search Input */}
+          <div className="relative min-w-[160px]">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="이름 검색..."
-              className="w-full pl-9 pr-3 py-2 text-xs border rounded-xl focus:ring-2 focus:ring-blue-200 outline-none"
+              className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-slate-900 outline-none transition"
             />
           </div>
 
-          {/* Tier Filter */}
-          <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value)}
-            className="px-3 py-2 text-xs border rounded-xl focus:ring-2 focus:ring-blue-200 outline-none bg-white text-gray-700 font-medium"
-          >
-            <option value="전체">전체 등급</option>
-            <option value="신입">🟩 신입회원</option>
-            <option value="정회원">🟦 정회원 (1~2학기)</option>
-            <option value="OB">🟥 OB 회원 (3학기 이상)</option>
-          </select>
+          {/* Period Selector */}
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200/80">
+            <span className="text-[11px] text-slate-400 font-medium px-2 flex items-center gap-1">
+              <Filter className="w-3 h-3 text-slate-400" /> 기간:
+            </span>
+            <button
+              onClick={() => setSelectedMonth('전체')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
+                selectedMonth === '전체' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              전체 학기
+            </button>
+            {months.map((m) => (
+              <button
+                key={m}
+                onClick={() => setSelectedMonth(m)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
+                  selectedMonth === m ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
 
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs border rounded-xl focus:ring-2 focus:ring-blue-200 outline-none bg-white text-gray-700 font-medium"
-          >
-            <option value="전체">전체 상태</option>
-            <option value="충족">🟢 충족 (목표 달성)</option>
-            <option value="진행중">🟡 진행중</option>
-            <option value="미달">🔴 미달</option>
-            <option value="비활동">⚪ 비활동 (휴학 등)</option>
-          </select>
-
-          <span className="text-xs text-gray-400 font-medium ml-1">
-            검색 결과: <strong className="text-blue-600">{filteredMembers.length}</strong>명
-          </span>
+          {/* Sort Selector */}
+          <div className="flex items-center gap-1">
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+              className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-slate-900 outline-none bg-white text-slate-700 font-semibold cursor-pointer"
+            >
+              <option value="name_asc">가나다순</option>
+              <option value="count_desc">출석 많은 순</option>
+              <option value="count_asc">출석 적은 순</option>
+              <option value="completed">완료 기준 (4회 이상)</option>
+              <option value="pending">미달 기준 (4회 미만)</option>
+            </select>
+          </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Top Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={onOpenUploader}
-            className="px-3.5 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold rounded-xl border border-blue-200 flex items-center gap-1.5 transition"
+            onClick={onOpenRosterImport}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl border border-slate-200/80 flex items-center gap-1.5 transition"
           >
-            <Upload className="w-3.5 h-3.5" />
-            카톡 txt 파싱
+            <UserPlus className="w-3.5 h-3.5 text-slate-600" />
+            전체 명단 불러오기
           </button>
 
           <button
-            onClick={() => exportToExcel(filteredMembers)}
-            className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold rounded-xl border border-emerald-200 flex items-center gap-1.5 transition"
+            onClick={onOpenUploader}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl border border-slate-200/80 flex items-center gap-1.5 transition"
+          >
+            <Upload className="w-3.5 h-3.5 text-slate-600" />
+            카톡 txt 불러오기
+          </button>
+
+          <button
+            onClick={() => exportToExcel(sortedMembers, activeMonths)}
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs flex items-center gap-1.5 transition"
           >
             <Download className="w-3.5 h-3.5" />
-            엑셀 다운로드 (xlsx)
+            엑셀 다운로드
           </button>
 
           <button
             onClick={onAddMember}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm flex items-center gap-1.5 transition"
+            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl border border-slate-200 transition"
+            title="회원 수동 추가"
           >
-            <Plus className="w-3.5 h-3.5" />
-            회원 추가
-          </button>
-
-          <button
-            onClick={onResetData}
-            title="기본 명단으로 초기화"
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition"
-          >
-            <RotateCcw className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Main Table Grid */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Main Table */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-gray-100/80 text-gray-700 font-bold border-b border-gray-200">
-                <th className="py-3 px-3 text-center border-r w-10">No</th>
-                <th className="py-3 px-3 border-r min-w-[90px]">이름</th>
-                <th className="py-3 px-3 border-r text-center w-20">학기 수</th>
-                <th className="py-3 px-3 border-r min-w-[200px]">
-                  26.9 <span className="font-normal text-gray-400">(9월)</span>
-                </th>
-                <th className="py-3 px-3 border-r min-w-[140px]">
-                  26.10 <span className="font-normal text-gray-400">(10월)</span>
-                </th>
-                <th className="py-3 px-3 border-r min-w-[140px]">
-                  26.11 <span className="font-normal text-gray-400">(11월)</span>
-                </th>
-                <th className="py-3 px-3 border-r min-w-[140px]">
-                  26.12 <span className="font-normal text-gray-400">(12월)</span>
-                </th>
-                <th className="py-3 px-3 border-r text-center font-extrabold text-blue-700 w-16 bg-blue-50/50">
+              <tr className="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200/80">
+                <th className="py-3.5 px-4 text-center border-r border-slate-200/60 w-12 text-slate-400">#</th>
+                <th className="py-3.5 px-4 border-r border-slate-200/60 min-w-[100px] text-slate-900">이름</th>
+                
+                {selectedMonth === '전체' ? (
+                  months.map((m) => (
+                    <th key={m} className="py-3.5 px-4 border-r border-slate-200/60 min-w-[160px]">
+                      {m}
+                    </th>
+                  ))
+                ) : (
+                  <th className="py-3.5 px-4 border-r border-slate-200/60 min-w-[240px]">
+                    {selectedMonth} 출석 날짜
+                  </th>
+                )}
+
+                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center font-extrabold text-slate-900 w-20 bg-slate-100/50">
                   합계
                 </th>
-                <th className="py-3 px-3 border-r text-center min-w-[110px]">유지 조건</th>
-                <th className="py-3 px-3 border-r text-center min-w-[90px]">비활동 여부</th>
-                <th className="py-3 px-3 border-r min-w-[120px]">보증금 / 비고</th>
-                <th className="py-3 px-2 text-center w-16">관리</th>
+                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center min-w-[100px]">달성 상태</th>
+                <th className="py-3.5 px-3 text-center w-16 text-slate-400">관리</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200/70">
-              {filteredMembers.map((member, index) => {
-                const tierColor = getTierColorClass(member.tier);
-                const statusInfo = getStatusBadgeInfo(member);
-                const totalCount = calculateSemesterTotal(member.attendances);
+            <tbody className="divide-y divide-slate-100">
+              {sortedMembers.map((member, index) => {
+                const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
+                const targetCount = member.targetCount || 4;
+                const isCompleted = totalCount >= targetCount;
 
                 return (
-                  <tr key={member.id} className={`${tierColor} transition-colors group`}>
-                    {/* Index */}
-                    <td className="py-2.5 px-3 text-center text-gray-400 border-r text-[11px]">
+                  <tr key={member.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="py-3 px-4 text-center text-slate-400 border-r border-slate-100 text-[11px]">
                       {index + 1}
                     </td>
 
-                    {/* Name */}
-                    <td className="py-2.5 px-3 font-semibold text-gray-900 border-r">
-                      <div className="flex items-center justify-between">
-                        <span>{member.name}</span>
-                        {member.tier === '신입' && (
-                          <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-normal">
-                            신입
-                          </span>
+                    <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-100">
+                      {member.name}
+                    </td>
+
+                    {/* Monthly Attendance */}
+                    {selectedMonth === '전체' ? (
+                      months.map((mKey) => {
+                        const daysValue = member.attendances[mKey] || '';
+                        const isEditing = editingCell?.memberId === member.id && editingCell?.month === mKey;
+
+                        return (
+                          <td
+                            key={mKey}
+                            onClick={() => !isEditing && handleCellClick(member.id, mKey, daysValue)}
+                            className="py-3 px-4 border-r border-slate-100 cursor-pointer hover:bg-slate-100/60 transition text-slate-700"
+                          >
+                            {isEditing ? (
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  value={cellValue}
+                                  onChange={(e) => setCellValue(e.target.value)}
+                                  placeholder="예: 4, 8, 15"
+                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs focus:border-slate-900 outline-none"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleCellSave();
+                                    if (e.key === 'Escape') setEditingCell(null);
+                                  }}
+                                />
+                                <button
+                                  onClick={handleCellSave}
+                                  className="px-2 py-1 bg-slate-900 text-white text-[11px] font-bold rounded"
+                                >
+                                  저장
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between group/cell">
+                                <span>{daysValue || <span className="text-slate-300 font-light">-</span>}</span>
+                                <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition" />
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })
+                    ) : (
+                      <td
+                        onClick={() => handleCellClick(member.id, selectedMonth, member.attendances[selectedMonth] || '')}
+                        className="py-3 px-4 border-r border-slate-100 cursor-pointer hover:bg-slate-100/60 transition text-slate-700"
+                      >
+                        {editingCell?.memberId === member.id && editingCell?.month === selectedMonth ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={cellValue}
+                              onChange={(e) => setCellValue(e.target.value)}
+                              placeholder="예: 4, 8, 15"
+                              className="w-full px-2 py-1 border border-slate-300 rounded text-xs focus:border-slate-900 outline-none"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleCellSave();
+                                if (e.key === 'Escape') setEditingCell(null);
+                              }}
+                            />
+                            <button
+                              onClick={handleCellSave}
+                              className="px-2 py-1 bg-slate-900 text-white text-[11px] font-bold rounded"
+                            >
+                              저장
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between group/cell">
+                            <span>
+                              {member.attendances[selectedMonth] || <span className="text-slate-300 font-light">-</span>}
+                            </span>
+                            <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition" />
+                          </div>
                         )}
-                      </div>
-                    </td>
-
-                    {/* Semester Count */}
-                    <td className="py-2.5 px-3 text-center font-medium border-r text-gray-700">
-                      {member.semesterCount || (member.tier === '신입' ? '' : '1')}
-                    </td>
-
-                    {/* Monthly Attendance Days (26.9, 26.10, 26.11, 26.12) */}
-                    {months.map((mKey) => {
-                      const daysValue = member.attendances[mKey] || '';
-                      const isEditing =
-                        editingCell?.memberId === member.id && editingCell?.month === mKey;
-
-                      return (
-                        <td
-                          key={mKey}
-                          onClick={() => !isEditing && handleCellClick(member.id, mKey, daysValue)}
-                          className="py-2.5 px-3 border-r cursor-pointer hover:bg-white/80 transition relative text-gray-800"
-                        >
-                          {isEditing ? (
-                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="text"
-                                value={cellValue}
-                                onChange={(e) => setCellValue(e.target.value)}
-                                placeholder="예: 4, 8, 15"
-                                className="w-full px-2 py-1 border rounded text-xs focus:ring-2 focus:ring-blue-300 outline-none"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleCellSave();
-                                  if (e.key === 'Escape') setEditingCell(null);
-                                }}
-                              />
-                              <button
-                                onClick={handleCellSave}
-                                className="px-2 py-1 bg-blue-600 text-white text-[11px] font-bold rounded"
-                              >
-                                저장
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between group/cell">
-                              <span className="truncate max-w-[180px]">
-                                {daysValue || <span className="text-gray-300 font-light">-</span>}
-                              </span>
-                              <Edit2 className="w-3 h-3 text-gray-400 opacity-0 group-hover/cell:opacity-100 transition" />
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
+                      </td>
+                    )}
 
                     {/* Total Count */}
-                    <td className="py-2.5 px-3 text-center font-extrabold text-blue-900 border-r bg-blue-50/30 text-sm">
+                    <td className="py-3 px-4 text-center font-extrabold text-slate-900 border-r border-slate-100 bg-slate-50/50 text-sm">
                       {totalCount}
                     </td>
 
-                    {/* Status Badge */}
-                    <td className="py-2.5 px-3 border-r text-center">
+                    {/* Status */}
+                    <td className="py-3 px-4 border-r border-slate-100 text-center">
                       <span
-                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] border shadow-2xs ${statusInfo.colorClass}`}
+                        className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                          isCompleted
+                            ? 'bg-slate-900 text-white'
+                            : totalCount > 0
+                            ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                            : 'bg-slate-50 text-slate-400 border border-slate-200/60'
+                        }`}
                       >
-                        {statusInfo.label}
+                        {isCompleted ? `완료 (${totalCount}/${targetCount})` : `미달 (${totalCount}/${targetCount})`}
                       </span>
                     </td>
 
-                    {/* Inactive Status */}
-                    <td className="py-2.5 px-3 border-r text-center text-gray-700 font-medium">
-                      {member.inactiveStatus ? (
-                        <span className="bg-gray-200/80 text-gray-700 px-2 py-0.5 rounded text-[11px]">
-                          {member.inactiveStatus}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300 font-light">-</span>
-                      )}
-                    </td>
-
-                    {/* Notes / Penalty */}
-                    <td className="py-2.5 px-3 border-r text-gray-600">
-                      {member.note ? (
-                        <span className="text-rose-700 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                          {member.note}
-                        </span>
-                      ) : (
-                        <span className="text-gray-300 font-light">-</span>
-                      )}
-                    </td>
-
-                    {/* Edit/Delete Actions */}
-                    <td className="py-2.5 px-2 text-center">
-                      <div className="flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100">
+                    {/* Actions */}
+                    <td className="py-3 px-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5 opacity-60 group-hover:opacity-100">
                         <button
                           onClick={() => onEditMember(member)}
-                          title="회원 정보 수정"
-                          className="p-1 text-gray-500 hover:text-blue-600 hover:bg-white rounded transition"
+                          className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition"
+                          title="수정"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`${member.name} 회원을 삭제하시겠습니까?`)) {
+                            if (confirm(`${member.name} 회원을 목록에서 삭제하시겠습니까?`)) {
                               onDeleteMember(member.id);
                             }
                           }}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded transition"
                           title="삭제"
-                          className="p-1 text-gray-400 hover:text-rose-600 hover:bg-white rounded transition"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -340,40 +331,15 @@ export function AttendanceTable({
                 );
               })}
 
-              {filteredMembers.length === 0 && (
+              {sortedMembers.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-gray-400">
-                    검색 조건에 해당되는 크루원이 없습니다.
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                    크루원 데이터가 없습니다. 카톡 txt 대화록을 업로드하거나 명단을 추가해 주세요.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Excel Color Legend Footer */}
-        <div className="bg-gray-50 border-t p-3 text-xs text-gray-600 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="font-bold text-gray-700 flex items-center gap-1">
-              <Info className="w-4 h-4 text-blue-500" /> 회원 등급 표기 범주 (공지 엑셀 동일 기준):
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded bg-[#d9f2d9] border border-emerald-300 inline-block" />
-              <span>신입회원 (유지: <strong>4회 이상</strong>)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded bg-[#dbeafe] border border-blue-300 inline-block" />
-              <span>정회원: 1~2학기 (유지: <strong>4회 이상</strong>)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded bg-[#fce7f3] border border-rose-300 inline-block" />
-              <span>OB 회원: 3학기 이상 (유지: <strong>2회 이상</strong>)</span>
-            </div>
-          </div>
-
-          <div className="text-gray-400 text-[11px]">
-            * 셀을 클릭하면 참석 날짜를 즉시 수정할 수 있습니다.
-          </div>
         </div>
       </div>
     </div>

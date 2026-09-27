@@ -10,7 +10,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
 
   const memberMap = new Map<string, Member>();
 
-  // Pre-load existing members if any
+  // Pre-load current members if provided
   currentMembers.forEach((m) => {
     memberMap.set(m.name.trim(), {
       ...m,
@@ -21,7 +21,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   const detectedEvents: { date: string; title: string; participants: string[] }[] = [];
   let parsedLogsCount = 0;
 
-  // Regex patterns
   const dateHeaderRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/;
   const dateMsgRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(오전|오후)\s*(\d{1,2}):(\d{2})/;
   const userJoinedRegex = /(.+?)님이 들어왔습니다\./;
@@ -30,12 +29,11 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     const trimmed = line.trim();
     if (!trimmed) return;
 
-    // Check date header or line timestamp
     const headerMatch = trimmed.match(dateHeaderRegex);
     if (headerMatch) {
-      currentYear = headerMatch[1].slice(2); // '26'
-      currentMonth = headerMatch[2]; // '9'
-      currentDay = headerMatch[3]; // '14'
+      currentYear = headerMatch[1].slice(2);
+      currentMonth = headerMatch[2];
+      currentDay = headerMatch[3];
       currentMonthKey = `${currentYear}.${currentMonth}`;
     }
 
@@ -47,7 +45,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
       currentMonthKey = `${currentYear}.${currentMonth}`;
     }
 
-    // Check new user joined line
+    // Check user joined
     const joinMatch = trimmed.match(userJoinedRegex);
     if (joinMatch) {
       const rawName = joinMatch[1].split(',').pop()?.trim() || joinMatch[1].trim();
@@ -56,21 +54,17 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
         memberMap.set(cleanName, {
           id: String(Date.now() + Math.random()),
           name: cleanName,
-          semesterCount: '',
-          tier: '신입',
-          attendances: {},
-          joinDate: `20${currentYear}-${currentMonth.padStart(2, '0')}-${currentDay.padStart(2, '0')}`
+          attendances: {}
         });
       }
     }
 
-    // Check for @mentions in line
+    // Check @mentions
     if (trimmed.includes('@')) {
       const rawMentions = extractMentions(trimmed);
       if (rawMentions.length > 0) {
         parsedLogsCount++;
 
-        // Detect optional event title
         let eventLabel = '';
         if (/대러리|대학러닝|대련/.test(trimmed)) eventLabel = '대러리';
         else if (/레드불/.test(trimmed)) eventLabel = '레드불';
@@ -83,9 +77,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
           let cleanName = cleanMemberName(mention);
           if (!cleanName || cleanName.length < 2) return;
 
-          // If member doesn't exist yet, create automatically as 신입
           if (!memberMap.has(cleanName)) {
-            // Check if partial match exists
             const existingName = Array.from(memberMap.keys()).find(
               (k) => k === cleanName || k.endsWith(cleanName) || cleanName.endsWith(k)
             );
@@ -95,8 +87,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
               memberMap.set(cleanName, {
                 id: String(Date.now() + Math.random()),
                 name: cleanName,
-                semesterCount: '',
-                tier: '신입',
                 attendances: {}
               });
             }
@@ -107,7 +97,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
           
           const existingMonthStr = member.attendances[currentMonthKey] || '';
           const existingDays = existingMonthStr.split(',').map(s => s.trim()).filter(Boolean);
-          
           const dayEntry = eventLabel ? `${currentDay}(${eventLabel})` : currentDay;
 
           if (!existingDays.some(d => d.startsWith(currentDay))) {
@@ -128,7 +117,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     }
   });
 
-  // Sort members alphabetically
   const sortedMembers = Array.from(memberMap.values()).sort((a, b) =>
     a.name.localeCompare(b.name, 'ko')
   );
@@ -140,6 +128,30 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   };
 }
 
+export function parseRosterText(rosterText: string, currentMembers: Member[]): Member[] {
+  // Split names by newlines, commas, spaces, or slashes
+  const rawNames = rosterText
+    .split(/[\n,\r\/;]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 2);
+
+  const existingMap = new Map<string, Member>();
+  currentMembers.forEach((m) => existingMap.set(m.name, m));
+
+  rawNames.forEach((name) => {
+    const cleanName = cleanMemberName(name);
+    if (cleanName && !existingMap.has(cleanName)) {
+      existingMap.set(cleanName, {
+        id: String(Date.now() + Math.random()),
+        name: cleanName,
+        attendances: {}
+      });
+    }
+  });
+
+  return Array.from(existingMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+}
+
 function cleanMemberName(raw: string): string {
   let cleaned = raw
     .replace(/^@/, '')
@@ -147,7 +159,6 @@ function cleanMemberName(raw: string): string {
     .replace(/님$/, '')
     .trim();
 
-  // Strip department/university prefix e.g. "서울 융합전자공학부 이주호" -> "이주호"
   const words = cleaned.split(/\s+/);
   if (words.length > 1) {
     const lastWord = words[words.length - 1];
