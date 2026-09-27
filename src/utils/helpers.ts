@@ -44,7 +44,7 @@ export function sortMembers(members: Member[], sortOption: SortOption, activeMon
         const reqB = b.targetCount || 4;
         const compA = totalA >= reqA ? 1 : 0;
         const compB = totalB >= reqB ? 1 : 0;
-        if (compB !== compA) return compB - compA; // 완료된 사람 먼저
+        if (compB !== compA) return compB - compA;
         return totalB - totalA;
       });
 
@@ -56,7 +56,7 @@ export function sortMembers(members: Member[], sortOption: SortOption, activeMon
         const reqB = b.targetCount || 4;
         const compA = totalA >= reqA ? 1 : 0;
         const compB = totalB >= reqB ? 1 : 0;
-        if (compA !== compB) return compA - compB; // 미달된 사람 먼저
+        if (compA !== compB) return compA - compB;
         return totalA - totalB;
       });
 
