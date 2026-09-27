@@ -355,12 +355,12 @@ export function AttendanceTable({
                 )}
 
                 {/* 3. Right Sticky Column: Total Count */}
-                <th className="py-3.5 px-4 border-r border-slate-200/80 text-center font-extrabold text-slate-900 w-20 sticky right-[115px] bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                <th className="py-3.5 px-4 border-r border-slate-200/80 text-center font-extrabold text-slate-900 w-20 sticky right-[125px] bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                   합계
                 </th>
 
                 {/* 4. Right Sticky Column: Status */}
-                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center min-w-[115px] sticky right-0 bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
+                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center min-w-[125px] sticky right-0 bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                   달성 상태
                 </th>
 
@@ -381,7 +381,7 @@ export function AttendanceTable({
                     </td>
 
                     {/* Left Sticky Body Cell: Name */}
-                    <td className="py-3 px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                    <td className="py-3 px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
                       {member.name}
                     </td>
 
@@ -471,14 +471,14 @@ export function AttendanceTable({
                     )}
 
                     {/* Right Sticky Body Cell: Total Count */}
-                    <td className="py-3 px-4 text-center font-extrabold text-slate-900 border-r border-slate-200/80 sticky right-[115px] bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] text-sm">
+                    <td className="py-3 px-4 text-center font-extrabold text-slate-900 border-r border-slate-200/80 sticky right-[125px] bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] text-sm">
                       {totalCount}
                     </td>
 
                     {/* Right Sticky Body Cell: Status */}
                     <td className="py-3 px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${
+                        className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
                           isCompleted
                             ? 'bg-slate-900 text-white'
                             : totalCount > 0
