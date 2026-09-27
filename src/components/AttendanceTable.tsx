@@ -28,6 +28,7 @@ interface AttendanceTableProps {
   onOpenUploader: () => void;
   onOpenRosterImport: () => void;
   onUpdateDays: (memberId: string, month: string, newDays: string) => void;
+  onSelectDatePill?: (member: Member, monthKey: string, day: string) => void;
 }
 
 export function AttendanceTable({
@@ -37,7 +38,8 @@ export function AttendanceTable({
   onDeleteMember,
   onOpenUploader,
   onOpenRosterImport,
-  onUpdateDays
+  onUpdateDays,
+  onSelectDatePill
 }: AttendanceTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>('2026-2');
@@ -111,6 +113,38 @@ export function AttendanceTable({
       return `${monthNum}월`;
     }
     return monthKey;
+  };
+
+  const renderDaysPills = (member: Member, monthKey: string, daysValue: string) => {
+    if (!daysValue || !daysValue.trim()) {
+      return <span className="text-slate-300 font-light">-</span>;
+    }
+
+    const dayTokens = daysValue
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {dayTokens.map((dayStr) => (
+          <button
+            key={dayStr}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onSelectDatePill) {
+                onSelectDatePill(member, monthKey, dayStr);
+              }
+            }}
+            className="px-2 py-0.5 rounded-md text-xs font-mono bg-slate-100 hover:bg-slate-200 text-slate-800 transition border border-slate-200/80 font-bold cursor-pointer shadow-2xs"
+            title="원문 메시지 확인"
+          >
+            {dayStr}
+          </button>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -376,9 +410,9 @@ export function AttendanceTable({
                               </div>
                             ) : (
                               <div className="flex items-center justify-between group/cell">
-                                <span>{daysValue || <span className="text-slate-300 font-light">-</span>}</span>
+                                {renderDaysPills(member, mKey, daysValue)}
                                 {isEditMode && (
-                                  <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition" />
+                                  <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition ml-1 shrink-0" />
                                 )}
                               </div>
                             )}
@@ -415,11 +449,9 @@ export function AttendanceTable({
                           </div>
                         ) : (
                           <div className="flex items-center justify-between group/cell">
-                            <span>
-                              {member.attendances[selectedMonth] || <span className="text-slate-300 font-light">-</span>}
-                            </span>
+                            {renderDaysPills(member, selectedMonth, member.attendances[selectedMonth] || '')}
                             {isEditMode && (
-                              <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition" />
+                              <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition ml-1 shrink-0" />
                             )}
                           </div>
                         )}

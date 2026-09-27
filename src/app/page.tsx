@@ -1,26 +1,33 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Download, UserPlus, RefreshCw, AlertCircle } from 'lucide-react';
-import { Member, ParseResult, UnmatchedTag } from '../types/attendance';
+import { Upload, HelpCircle } from 'lucide-react';
+import { Member, ParseResult, UnmatchedTag, ReviewItem, AttendanceSource } from '../types/attendance';
 import { parseKakaoTalkLog, parseRosterText } from '../utils/parser';
 import { StatsOverview } from '../components/StatsOverview';
 import { AttendanceTable } from '../components/AttendanceTable';
 import { FileUploaderModal } from '../components/FileUploaderModal';
 import { RosterImportModal } from '../components/RosterImportModal';
-import { UnmatchedTagsModal } from '../components/UnmatchedTagsModal';
 import { MemberModal } from '../components/MemberModal';
+import { ReviewNeededModal } from '../components/ReviewNeededModal';
+import { AttendanceSourceModal } from '../components/AttendanceSourceModal';
 
 export default function Home() {
   const [members, setMembers] = useState<Member[]>([]);
   const [unmatchedTags, setUnmatchedTags] = useState<UnmatchedTag[]>([]);
+  const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
   // Modals
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [isRosterImportOpen, setIsRosterImportOpen] = useState(false);
-  const [isUnmatchedModalOpen, setIsUnmatchedModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null | 'new'>(null);
+  const [selectedDateSource, setSelectedDateSource] = useState<{
+    member: Member;
+    monthKey: string;
+    day: string;
+  } | null>(null);
 
   // Load stored state
   useEffect(() => {
@@ -54,6 +61,7 @@ export default function Home() {
         const result: ParseResult = parseKakaoTalkLog(text, members);
         saveState(result.members);
         setUnmatchedTags(result.unmatchedTags || []);
+        setReviewItems(result.reviewItems || []);
       }
     };
     reader.readAsText(file, 'utf-8');
@@ -64,50 +72,99 @@ export default function Home() {
     saveState(updated);
   };
 
-  // Confirm attendance for a single tag
-  const handleConfirmAttendance = (tag: UnmatchedTag, targetName: string) => {
-    const parts = tag.date.split('.');
-    const monthKey = `${parts[0]}.${parts[1]}`;
-    const dayVal = parts[2];
+  // Apply Review Item (from 3-tier review queue with checkboxes)
+  const handleApplyReviewItem = (item: ReviewItem, selectedNames: string[]) => {
+    let updatedMembers = [...members];
 
-    const idx = members.findIndex((m) => m.name === targetName);
-    let updatedMembers: Member[];
+    const sourceObj: AttendanceSource = {
+      id: String(Date.now() + Math.random()),
+      timestamp: item.formattedDate,
+      sender: item.sender,
+      message: item.fullMessage,
+      decisionType: 'review'
+    };
 
-    if (idx >= 0) {
-      updatedMembers = members.map((m) => {
-        if (m.name === targetName) {
-          const existing = m.attendances[monthKey] || '';
-          const days = existing.split(',').map((s) => s.trim()).filter(Boolean);
-          if (!days.includes(dayVal)) {
-            days.push(dayVal);
-            days.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
-          }
-          return {
-            ...m,
-            attendances: { ...m.attendances, [monthKey]: days.join(', ') },
-          };
+    const dayKey = `${item.monthKey}.${item.day}`;
+
+    selectedNames.forEach((targetName) => {
+      const idx = updatedMembers.findIndex((m) => m.name === targetName);
+      if (idx >= 0) {
+        const member = updatedMembers[idx];
+        const existingDays = (member.attendances[item.monthKey] || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        if (!existingDays.includes(item.day)) {
+          existingDays.push(item.day);
+          existingDays.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
         }
-        return m;
-      });
-    } else {
-      // Create member if new
-      const newMember: Member = {
-        id: String(Date.now()),
-        name: targetName,
-        attendances: { [monthKey]: dayVal },
-      };
-      updatedMembers = [newMember, ...members];
-    }
+
+        const nextSources = member.sources ? { ...member.sources } : {};
+        if (!nextSources[dayKey]) nextSources[dayKey] = [];
+        if (!nextSources[dayKey].some((s) => s.message === item.fullMessage)) {
+          nextSources[dayKey].push(sourceObj);
+        }
+
+        updatedMembers[idx] = {
+          ...member,
+          attendances: { ...member.attendances, [item.monthKey]: existingDays.join(', ') },
+          sources: nextSources
+        };
+      } else {
+        const newMember: Member = {
+          id: String(Date.now() + Math.random()),
+          name: targetName,
+          attendances: { [item.monthKey]: item.day },
+          sources: { [dayKey]: [sourceObj] }
+        };
+        updatedMembers.push(newMember);
+      }
+    });
 
     saveState(updatedMembers);
-    setUnmatchedTags((prev) => prev.filter((t) => t.id !== tag.id));
-    if (unmatchedTags.length <= 1) setIsUnmatchedModalOpen(false);
+    const nextQueue = reviewItems.filter((r) => r.id !== item.id);
+    setReviewItems(nextQueue);
+    if (nextQueue.length === 0) setIsReviewModalOpen(false);
   };
 
-  // Discard single tag
-  const handleDiscardTag = (tagId: string) => {
-    setUnmatchedTags((prev) => prev.filter((t) => t.id !== tagId));
-    if (unmatchedTags.length <= 1) setIsUnmatchedModalOpen(false);
+  const handleDiscardReviewItem = (itemId: string) => {
+    const nextQueue = reviewItems.filter((r) => r.id !== itemId);
+    setReviewItems(nextQueue);
+    if (nextQueue.length === 0) setIsReviewModalOpen(false);
+  };
+
+  const handleSelectDatePill = (member: Member, monthKey: string, day: string) => {
+    setSelectedDateSource({ member, monthKey, day });
+  };
+
+  const handleDeleteAttendanceDay = (memberName: string, monthKey: string, day: string) => {
+    const updatedMembers = members.map((m) => {
+      if (m.name === memberName) {
+        const existingDays = (m.attendances[monthKey] || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const filteredDays = existingDays.filter((d) => d !== day);
+
+        const dayKey = `${monthKey}.${day}`;
+        const nextSources = m.sources ? { ...m.sources } : {};
+        delete nextSources[dayKey];
+
+        return {
+          ...m,
+          attendances: {
+            ...m.attendances,
+            [monthKey]: filteredDays.join(', ')
+          },
+          sources: nextSources
+        };
+      }
+      return m;
+    });
+
+    saveState(updatedMembers);
+    setSelectedDateSource(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -142,8 +199,8 @@ export default function Home() {
           ...m,
           attendances: {
             ...m.attendances,
-            [month]: newDays,
-          },
+            [month]: newDays
+          }
         };
       }
       return m;
@@ -155,6 +212,7 @@ export default function Home() {
     if (confirm('현재 출석부 데이터를 초기화하시겠습니까?')) {
       setMembers([]);
       setUnmatchedTags([]);
+      setReviewItems([]);
       localStorage.removeItem('crew_attendance_minimal_v2');
     }
   };
@@ -227,20 +285,20 @@ export default function Home() {
           </div>
         ) : (
           <>
-            {/* Single Tag Verification Banner */}
-            {unmatchedTags.length > 0 && (
+            {/* Review Needed Queue Banner */}
+            {reviewItems.length > 0 && (
               <div className="bg-slate-900 text-white rounded-2xl p-4 mb-5 flex items-center justify-between shadow-xs animate-in fade-in duration-200">
                 <div className="flex items-center gap-2 text-xs">
-                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <HelpCircle className="w-4.5 h-4.5 text-amber-400 shrink-0" />
                   <span>
-                    단일 태그 메시지 <strong>{unmatchedTags.length}건</strong>이 있습니다. 출석 인증인지 확인 후 집계에 반영할 수 있습니다.
+                    출석 검토 필요 메시지 <strong>{reviewItems.length}건</strong>이 있습니다. 대화 원문 확인 후 반영할 회원만 체크하여 반영할 수 있습니다.
                   </span>
                 </div>
                 <button
-                  onClick={() => setIsUnmatchedModalOpen(true)}
-                  className="px-3.5 py-1.5 bg-white text-slate-900 text-xs font-extrabold rounded-xl hover:bg-slate-100 transition shadow-2xs"
+                  onClick={() => setIsReviewModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-white text-slate-900 text-xs font-extrabold rounded-xl hover:bg-slate-100 transition shadow-2xs cursor-pointer shrink-0"
                 >
-                  확인 및 반영하기
+                  검토하기
                 </button>
               </div>
             )}
@@ -257,6 +315,7 @@ export default function Home() {
               onOpenUploader={() => setIsUploaderOpen(true)}
               onOpenRosterImport={() => setIsRosterImportOpen(true)}
               onUpdateDays={handleUpdateDays}
+              onSelectDatePill={handleSelectDatePill}
             />
           </>
         )}
@@ -281,13 +340,29 @@ export default function Home() {
         />
       )}
 
-      {isUnmatchedModalOpen && (
-        <UnmatchedTagsModal
-          unmatchedTags={unmatchedTags}
+      {isReviewModalOpen && (
+        <ReviewNeededModal
+          reviewItems={reviewItems}
           members={members}
-          onConfirmAttendance={handleConfirmAttendance}
-          onDiscardTag={handleDiscardTag}
-          onClose={() => setIsUnmatchedModalOpen(false)}
+          onApplyReviewItem={handleApplyReviewItem}
+          onDiscardReviewItem={handleDiscardReviewItem}
+          onClose={() => setIsReviewModalOpen(false)}
+        />
+      )}
+
+      {selectedDateSource && (
+        <AttendanceSourceModal
+          memberName={selectedDateSource.member.name}
+          monthKey={selectedDateSource.monthKey}
+          day={selectedDateSource.day}
+          sources={
+            selectedDateSource.member.sources?.[
+              `${selectedDateSource.monthKey}.${selectedDateSource.day}`
+            ] || []
+          }
+          isEditMode={true}
+          onDeleteAttendanceDay={handleDeleteAttendanceDay}
+          onClose={() => setSelectedDateSource(null)}
         />
       )}
 

@@ -2,13 +2,40 @@ export interface AttendanceRecord {
   [monthKey: string]: string; // Key e.g., '26.9', '26.10', '25.9'
 }
 
+export interface AttendanceSource {
+  id: string;
+  timestamp: string; // e.g. "2026년 9월 18일 금요일 오후 10:02"
+  sender: string;
+  message: string;
+  decisionType: 'auto' | 'review' | 'manual';
+}
+
 export interface Member {
   id: string;
   name: string;
   attendances: AttendanceRecord;
+  sources?: Record<string, AttendanceSource[]>; // Key e.g., '26.9.18'
   targetCount?: number;
   joinDate?: string; // YYYY-MM-DD
   leaveDate?: string; // YYYY-MM-DD
+}
+
+export interface ReviewCandidate {
+  name: string;
+  isSelected: boolean;
+}
+
+export interface ReviewItem {
+  id: string;
+  timestampStr: string; // e.g. "2026.09.18 · 오후 6:42"
+  formattedDate: string; // e.g. "2026년 9월 18일 금요일 오후 6:42"
+  year: string;
+  month: string;
+  day: string;
+  monthKey: string;
+  sender: string;
+  fullMessage: string;
+  candidates: ReviewCandidate[];
 }
 
 export interface UnmatchedTag {
@@ -25,6 +52,7 @@ export interface ParseResult {
   members: Member[];
   parsedLogsCount: number;
   unmatchedTags: UnmatchedTag[];
+  reviewItems: ReviewItem[];
   detectedEvents: {
     date: string;
     title: string;
