@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Upload, HelpCircle } from 'lucide-react';
+import { Upload, HelpCircle, Loader2 } from 'lucide-react';
 import { Member, ParseResult, UnmatchedTag, ReviewItem, AttendanceSource } from '../types/attendance';
 import { parseKakaoTalkLog, parseRosterText } from '../utils/parser';
 import { StatsOverview } from '../components/StatsOverview';
@@ -18,6 +18,7 @@ export default function Home() {
   const [unmatchedTags, setUnmatchedTags] = useState<UnmatchedTag[]>([]);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   // Semester & Month state for dynamic KPI stats
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>('2026-2');
@@ -59,23 +60,62 @@ export default function Home() {
   };
 
   const handleFileUpload = (file: File) => {
-    const isTxt = file.name.endsWith('.txt') || file.type.startsWith('text/') || file.type === '';
-    if (!isTxt) {
-      alert('텍스트 (.txt) 파일만 업로드 가능합니다.');
-      return;
-    }
+    if (!file) return;
+    setIsProcessingFile(true);
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (text) {
-        const result: ParseResult = parseKakaoTalkLog(text, members);
-        saveState(result.members);
-        setUnmatchedTags(result.unmatchedTags || []);
-        setReviewItems(result.reviewItems || []);
+      let text = e.target?.result as string;
+      if (!text) {
+        setIsProcessingFile(false);
+        alert('파일 내용을 읽을 수 없습니다.');
+        return;
       }
+
+      let result: ParseResult = parseKakaoTalkLog(text, members);
+
+      // Mobile EUC-KR / CP949 encoding fallback check
+      if ((result.members.length === 0 || text.includes('\uFFFD')) && typeof TextDecoder !== 'undefined') {
+        const fallbackReader = new FileReader();
+        fallbackReader.onload = (fe) => {
+          const buffer = fe.target?.result as ArrayBuffer;
+          if (buffer) {
+            try {
+              const eucDecoder = new TextDecoder('euc-kr');
+              const eucText = eucDecoder.decode(buffer);
+              const eucResult = parseKakaoTalkLog(eucText, members);
+              if (eucResult.members.length > 0) {
+                result = eucResult;
+              }
+            } catch {}
+          }
+          finishUpload(result);
+        };
+        fallbackReader.onerror = () => finishUpload(result);
+        fallbackReader.readAsArrayBuffer(file);
+        return;
+      }
+
+      finishUpload(result);
     };
+
+    reader.onerror = () => {
+      setIsProcessingFile(false);
+      alert('파일을 읽는 도중 오류가 발생했습니다.');
+    };
+
     reader.readAsText(file, 'utf-8');
+  };
+
+  const finishUpload = (result: ParseResult) => {
+    setIsProcessingFile(false);
+    if (result.members.length === 0) {
+      alert('대화록에서 출석 태그(@이름)나 날짜를 찾지 못했습니다. 카카오톡 대화 텍스트 파일(.txt)을 확인해 주세요.');
+      return;
+    }
+    saveState(result.members);
+    setUnmatchedTags(result.unmatchedTags || []);
+    setReviewItems(result.reviewItems || []);
   };
 
   const handleRosterImport = (rosterText: string) => {
@@ -132,7 +172,7 @@ export default function Home() {
     saveState(nextMembers);
   };
 
-  // Apply Review Item (from 3-tier review queue with checkboxes)
+  // Apply Review Item
   const handleApplyReviewItem = (item: ReviewItem, selectedNames: string[]) => {
     let updatedMembers = [...members];
 
@@ -318,23 +358,30 @@ export default function Home() {
               }`}
             >
               <div className="w-16 h-16 bg-slate-100 text-slate-900 rounded-2xl flex items-center justify-center">
-                <Upload className="w-8 h-8" />
+                {isProcessingFile ? (
+                  <Loader2 className="w-8 h-8 animate-spin text-slate-700" />
+                ) : (
+                  <Upload className="w-8 h-8" />
+                )}
               </div>
 
               <div>
                 <h2 className="text-xl font-bold text-slate-900 mb-1">
-                  카카오톡 대화록 파일 선택
+                  {isProcessingFile ? '대화록 분석 중...' : '카카오톡 대화록 파일 선택'}
                 </h2>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  카톡 대화 내용 텍스트 파일(.txt)을 선택하거나 드래그하여 올려주세요.
+                  카톡 대화 내용 텍스트 파일(.txt)을 선택하거나 올려주세요.
                 </p>
               </div>
 
               <div className="flex items-center justify-center">
                 <input
                   type="file"
-                  accept=".txt,text/plain,text/*,*/*"
-                  onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                    e.target.value = '';
+                  }}
                   className="hidden"
                   id="main-file-input"
                 />
@@ -366,7 +413,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* KPI Stats (Dynamic per Semester & Month) */}
+            {/* KPI Stats */}
             <StatsOverview
               members={members}
               selectedSemesterId={selectedSemesterId}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, FileText, X, Check } from 'lucide-react';
+import { Upload, FileText, X, Check, Loader2 } from 'lucide-react';
 import { Member, ParseResult } from '../types/attendance';
 import { parseKakaoTalkLog } from '../utils/parser';
 
@@ -13,23 +13,59 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
   const [dragActive, setDragActive] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [fileName, setFileName] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleFile = (file: File) => {
-    const isTxt = file.name.endsWith('.txt') || file.type.startsWith('text/') || file.type === '';
-    if (!isTxt) {
-      alert('텍스트 (.txt) 파일만 업로드 가능합니다.');
-      return;
-    }
+    if (!file) return;
     setFileName(file.name);
+    setIsLoading(true);
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (text) {
-        const result = parseKakaoTalkLog(text, currentMembers);
-        setParseResult(result);
+      let text = e.target?.result as string;
+      if (!text) {
+        setIsLoading(false);
+        alert('파일 내용을 읽을 수 없습니다.');
+        return;
       }
+
+      let result = parseKakaoTalkLog(text, currentMembers);
+
+      // Mobile EUC-KR / CP949 encoding fallback
+      if ((result.members.length === 0 || text.includes('\uFFFD')) && typeof TextDecoder !== 'undefined') {
+        const fallbackReader = new FileReader();
+        fallbackReader.onload = (fe) => {
+          const buffer = fe.target?.result as ArrayBuffer;
+          if (buffer) {
+            try {
+              const eucDecoder = new TextDecoder('euc-kr');
+              const eucText = eucDecoder.decode(buffer);
+              const eucResult = parseKakaoTalkLog(eucText, currentMembers);
+              if (eucResult.members.length > 0) {
+                result = eucResult;
+              }
+            } catch {}
+          }
+          setIsLoading(false);
+          setParseResult(result);
+        };
+        fallbackReader.onerror = () => {
+          setIsLoading(false);
+          setParseResult(result);
+        };
+        fallbackReader.readAsArrayBuffer(file);
+        return;
+      }
+
+      setIsLoading(false);
+      setParseResult(result);
     };
+
+    reader.onerror = () => {
+      setIsLoading(false);
+      alert('파일을 읽는 도중 오류가 발생했습니다.');
+    };
+
     reader.readAsText(file, 'utf-8');
   };
 
@@ -66,16 +102,25 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
             }`}
           >
             <div className="w-12 h-12 bg-slate-100 text-slate-900 rounded-full flex items-center justify-center">
-              <Upload className="w-6 h-6" />
+              {isLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-slate-700" />
+              ) : (
+                <Upload className="w-6 h-6" />
+              )}
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900">.txt 파일 선택 또는 드래그</p>
+              <p className="text-xs font-bold text-slate-900">
+                {isLoading ? '대화록 분석 중...' : '.txt 파일 선택 또는 드래그'}
+              </p>
               <p className="text-[11px] text-slate-400 mt-0.5">카카오톡 내보내기 텍스트 파일</p>
             </div>
             <input
               type="file"
-              accept=".txt,text/plain,text/*,*/*"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFile(file);
+                e.target.value = '';
+              }}
               className="hidden"
               id="txt-modal-input"
             />
