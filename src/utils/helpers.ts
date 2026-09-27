@@ -36,30 +36,6 @@ export function sortMembers(members: Member[], sortOption: SortOption, activeMon
         return a.name.localeCompare(b.name, 'ko');
       });
 
-    case 'completed':
-      return copy.sort((a, b) => {
-        const totalA = calculateTotalForMonths(a.attendances, activeMonths);
-        const totalB = calculateTotalForMonths(b.attendances, activeMonths);
-        const reqA = a.targetCount || 4;
-        const reqB = b.targetCount || 4;
-        const compA = totalA >= reqA ? 1 : 0;
-        const compB = totalB >= reqB ? 1 : 0;
-        if (compB !== compA) return compB - compA;
-        return totalB - totalA;
-      });
-
-    case 'pending':
-      return copy.sort((a, b) => {
-        const totalA = calculateTotalForMonths(a.attendances, activeMonths);
-        const totalB = calculateTotalForMonths(b.attendances, activeMonths);
-        const reqA = a.targetCount || 4;
-        const reqB = b.targetCount || 4;
-        const compA = totalA >= reqA ? 1 : 0;
-        const compB = totalB >= reqB ? 1 : 0;
-        if (compA !== compB) return compA - compB;
-        return totalA - totalB;
-      });
-
     default:
       return copy;
   }

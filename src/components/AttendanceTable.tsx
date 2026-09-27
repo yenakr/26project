@@ -74,10 +74,10 @@ export function AttendanceTable({
   // Filter members based on semester active dates (joinDate & leaveDate)
   const semesterFilteredMembers = members.filter((m) => {
     if (m.joinDate && m.joinDate > currentSemesterObj.endDate) {
-      return false; // Member joined after semester ended
+      return false;
     }
     if (m.leaveDate && m.leaveDate < currentSemesterObj.startDate) {
-      return false; // Member left before semester started
+      return false;
     }
     return true;
   });
@@ -235,7 +235,7 @@ export function AttendanceTable({
             ))}
           </div>
 
-          {/* Sort Selector */}
+          {/* Sort Selector (Simplified to 3 options) */}
           <div className="flex items-center gap-1 shrink-0">
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
             <select
@@ -246,8 +246,6 @@ export function AttendanceTable({
               <option value="name_asc">가나다순</option>
               <option value="count_desc">출석 많은 순</option>
               <option value="count_asc">출석 적은 순</option>
-              <option value="completed">완료 기준 (4회↑)</option>
-              <option value="pending">미달 기준 (4회↓)</option>
             </select>
           </div>
         </div>
@@ -284,7 +282,7 @@ export function AttendanceTable({
         )}
       </div>
 
-      {/* ---------------- DUAL STICKY TABLE VIEW (REQUIREMENT 5) ---------------- */}
+      {/* ---------------- DUAL STICKY TABLE VIEW ---------------- */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
           <table className="w-full text-left text-xs border-collapse">
@@ -448,7 +446,7 @@ export function AttendanceTable({
                       </span>
                     </td>
 
-                    {/* Delete Action (Edit Mode) */}
+                    {/* Delete Action */}
                     {isEditMode && (
                       <td className="py-3 px-3 text-center border-r border-slate-100">
                         <button

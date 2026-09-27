@@ -13,11 +13,11 @@ export interface Member {
 
 export interface UnmatchedTag {
   id: string;
-  rawMention: string; // e.g. "garmin_korea" or "서울 러닝학과 이태윤"
-  extractedName: string; // e.g. "서울"
+  rawMention: string;
+  extractedName: string;
   lineText: string;
   date: string;
-  score: number; // 규칙 점수 (-3 ~ +5)
+  score: number;
   reason?: string;
 }
 
@@ -41,7 +41,7 @@ export interface SemesterInfo {
   isCurrent?: boolean;
 }
 
-export type SortOption = 'name_asc' | 'count_desc' | 'count_asc' | 'completed' | 'pending';
+export type SortOption = 'name_asc' | 'count_desc' | 'count_asc';
 
 export const DEFAULT_SEMESTERS: SemesterInfo[] = [
   {
