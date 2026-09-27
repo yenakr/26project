@@ -1,15 +1,16 @@
 import { Member, ParseResult } from '../types/attendance';
 
-export function parseKakaoTalkLog(logText: string, currentMembers: Member[]): ParseResult {
+export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []): ParseResult {
   const lines = logText.split(/\r?\n/);
   
-  let currentYear = '2026';
+  let currentYear = '26';
   let currentMonth = '9';
   let currentDay = '1';
   let currentMonthKey = '26.9';
 
   const memberMap = new Map<string, Member>();
-  // Pre-load current members
+
+  // Pre-load existing members if any
   currentMembers.forEach((m) => {
     memberMap.set(m.name.trim(), {
       ...m,
@@ -65,11 +66,11 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[]): Pa
 
     // Check for @mentions in line
     if (trimmed.includes('@')) {
-      const mentions = extractMentions(trimmed);
-      if (mentions.length > 0) {
+      const rawMentions = extractMentions(trimmed);
+      if (rawMentions.length > 0) {
         parsedLogsCount++;
 
-        // Detect optional event title (e.g., 대러리, 레드불, 춘천, YTN)
+        // Detect optional event title
         let eventLabel = '';
         if (/대러리|대학러닝|대련/.test(trimmed)) eventLabel = '대러리';
         else if (/레드불/.test(trimmed)) eventLabel = '레드불';
@@ -78,28 +79,41 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[]): Pa
 
         const matchedNames: string[] = [];
 
-        mentions.forEach((mention) => {
-          const matchedMemberName = matchNameWithMembers(mention, Array.from(memberMap.values()));
-          if (matchedMemberName) {
-            matchedNames.push(matchedMemberName);
-            const member = memberMap.get(matchedMemberName)!;
-            
-            const existingMonthStr = member.attendances[currentMonthKey] || '';
-            const existingDays = existingMonthStr.split(',').map(s => s.trim()).filter(Boolean);
-            
-            const dayEntry = eventLabel ? `${currentDay}(${eventLabel})` : currentDay;
+        rawMentions.forEach((mention) => {
+          let cleanName = cleanMemberName(mention);
+          if (!cleanName || cleanName.length < 2) return;
 
-            // Avoid duplicate day entries if already present
-            if (!existingDays.some(d => d.startsWith(currentDay))) {
-              existingDays.push(dayEntry);
-              // Sort numerically
-              existingDays.sort((a, b) => {
-                const numA = parseInt(a, 10);
-                const numB = parseInt(b, 10);
-                return numA - numB;
+          // If member doesn't exist yet, create automatically as 신입
+          if (!memberMap.has(cleanName)) {
+            // Check if partial match exists
+            const existingName = Array.from(memberMap.keys()).find(
+              (k) => k === cleanName || k.endsWith(cleanName) || cleanName.endsWith(k)
+            );
+            if (existingName) {
+              cleanName = existingName;
+            } else {
+              memberMap.set(cleanName, {
+                id: String(Date.now() + Math.random()),
+                name: cleanName,
+                semesterCount: '',
+                tier: '신입',
+                attendances: {}
               });
-              member.attendances[currentMonthKey] = existingDays.join(', ');
             }
+          }
+
+          matchedNames.push(cleanName);
+          const member = memberMap.get(cleanName)!;
+          
+          const existingMonthStr = member.attendances[currentMonthKey] || '';
+          const existingDays = existingMonthStr.split(',').map(s => s.trim()).filter(Boolean);
+          
+          const dayEntry = eventLabel ? `${currentDay}(${eventLabel})` : currentDay;
+
+          if (!existingDays.some(d => d.startsWith(currentDay))) {
+            existingDays.push(dayEntry);
+            existingDays.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+            member.attendances[currentMonthKey] = existingDays.join(', ');
           }
         });
 
@@ -114,48 +128,39 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[]): Pa
     }
   });
 
+  // Sort members alphabetically
+  const sortedMembers = Array.from(memberMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, 'ko')
+  );
+
   return {
-    members: Array.from(memberMap.values()),
+    members: sortedMembers,
     parsedLogsCount,
     detectedEvents
   };
 }
 
 function cleanMemberName(raw: string): string {
-  // Strip titles, department prefixes, and Hun/emojis
-  return raw
+  let cleaned = raw
     .replace(/^@/, '')
     .replace(/ Hun$/, '')
     .replace(/님$/, '')
-    .replace(/^[가-힣A-Za-z0-9]+\s+(?=[가-힣]{2,4}$)/, '') // e.g. "서울 융합전자공학부 이주호" -> "이주호"
     .trim();
+
+  // Strip department/university prefix e.g. "서울 융합전자공학부 이주호" -> "이주호"
+  const words = cleaned.split(/\s+/);
+  if (words.length > 1) {
+    const lastWord = words[words.length - 1];
+    if (/^[가-힣]{2,4}$/.test(lastWord)) {
+      return lastWord;
+    }
+  }
+
+  return cleaned;
 }
 
 function extractMentions(text: string): string[] {
   const matches = text.match(/@[^\s@]+/g);
   if (!matches) return [];
   return matches.map(m => m.replace(/^@/, '').trim());
-}
-
-function matchNameWithMembers(mentionText: string, members: Member[]): string | null {
-  const cleanedMention = cleanMemberName(mentionText);
-  
-  // 1. Direct name match
-  const directMatch = members.find(m => m.name === cleanedMention || mentionText.includes(m.name));
-  if (directMatch) return directMatch.name;
-
-  // 2. Substring match (e.g. mention "유지훈 Hun" contains "유지훈")
-  for (const m of members) {
-    if (mentionText.includes(m.name) || cleanedMention.includes(m.name)) {
-      return m.name;
-    }
-  }
-
-  // 3. Partial name match for short nicknames like "용학" -> "전용학"
-  if (cleanedMention.length >= 2) {
-    const partialMatch = members.find(m => m.name.endsWith(cleanedMention));
-    if (partialMatch) return partialMatch.name;
-  }
-
-  return null;
 }
