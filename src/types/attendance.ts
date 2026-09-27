@@ -1,5 +1,5 @@
 export interface AttendanceRecord {
-  [monthKey: string]: string; // Key e.g., '26.9', '26.10', '25.9', '25.3'
+  [monthKey: string]: string; // Key e.g., '26.9', '26.10', '25.9'
 }
 
 export interface Member {
@@ -9,9 +9,18 @@ export interface Member {
   targetCount?: number;
 }
 
+export interface UnmatchedTag {
+  id: string;
+  rawMention: string; // e.g., "서울 러닝학과 이태윤"
+  extractedName: string; // e.g., "서울"
+  lineText: string;
+  date: string;
+}
+
 export interface ParseResult {
   members: Member[];
   parsedLogsCount: number;
+  unmatchedTags: UnmatchedTag[];
   detectedEvents: {
     date: string;
     title: string;
@@ -20,9 +29,9 @@ export interface ParseResult {
 }
 
 export interface SemesterInfo {
-  id: string; // e.g., '2026-2'
-  name: string; // e.g., '2026년 2학기'
-  months: string[]; // e.g., ['26.9', '26.10', '26.11', '26.12', '27.1', '27.2']
+  id: string;
+  name: string;
+  months: string[]; // e.g. ['26.9', '26.10', '26.11', '26.12', '27.1', '27.2']
   isCurrent?: boolean;
 }
 

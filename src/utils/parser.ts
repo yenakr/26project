@@ -1,4 +1,4 @@
-import { Member, ParseResult } from '../types/attendance';
+import { Member, ParseResult, UnmatchedTag } from '../types/attendance';
 
 export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []): ParseResult {
   const lines = logText.split(/\r?\n/);
@@ -9,8 +9,9 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   let currentMonthKey = '26.9';
 
   const memberMap = new Map<string, Member>();
+  const unmatchedTags: UnmatchedTag[] = [];
 
-  // Pre-load current members if provided
+  // Pre-load current registered members
   currentMembers.forEach((m) => {
     memberMap.set(m.name.trim(), {
       ...m,
@@ -61,51 +62,69 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
 
     // Check @mentions
     if (trimmed.includes('@')) {
-      const rawMentions = extractMentions(trimmed);
-      if (rawMentions.length > 0) {
-        parsedLogsCount++;
-        const matchedNames: string[] = [];
+      parsedLogsCount++;
+      const atSplits = trimmed.split('@').slice(1);
+      const matchedNames: string[] = [];
 
-        rawMentions.forEach((mention) => {
-          let cleanName = cleanMemberName(mention);
-          if (!cleanName || cleanName.length < 2) return;
+      atSplits.forEach((atSegment) => {
+        if (!atSegment.trim()) return;
 
-          if (!memberMap.has(cleanName)) {
-            const existingName = Array.from(memberMap.keys()).find(
-              (k) => k === cleanName || k.endsWith(cleanName) || cleanName.endsWith(k)
-            );
-            if (existingName) {
-              cleanName = existingName;
-            } else {
-              memberMap.set(cleanName, {
-                id: String(Date.now() + Math.random()),
-                name: cleanName,
-                attendances: {}
-              });
-            }
+        // Registered roster member list sorted by length descending (longest match first)
+        const registeredNames = Array.from(memberMap.keys()).sort((a, b) => b.length - a.length);
+        const longestMatchedName = findLongestMatchingMember(atSegment, registeredNames);
+
+        let finalName = '';
+
+        if (longestMatchedName) {
+          finalName = longestMatchedName;
+        } else {
+          // Fallback: extract token up to space or next tag
+          const rawToken = atSegment.split(/\s+/)[0].trim();
+          finalName = cleanMemberName(rawToken);
+
+          // If the raw segment has multiple words (e.g. "서울 러닝학과 이태윤"), flag as suspicious unmatched tag
+          const segmentWords = atSegment.split(/\s+/).filter(Boolean);
+          if (segmentWords.length > 1 && finalName.length <= 3) {
+            const rawMentionSnippet = atSegment.split('@')[0].slice(0, 30).trim();
+            unmatchedTags.push({
+              id: String(Date.now() + Math.random()),
+              rawMention: rawMentionSnippet,
+              extractedName: finalName,
+              lineText: trimmed,
+              date: `${currentYear}.${currentMonth}.${currentDay}`
+            });
+          }
+        }
+
+        if (finalName && finalName.length >= 2) {
+          if (!memberMap.has(finalName)) {
+            memberMap.set(finalName, {
+              id: String(Date.now() + Math.random()),
+              name: finalName,
+              attendances: {}
+            });
           }
 
-          matchedNames.push(cleanName);
-          const member = memberMap.get(cleanName)!;
+          matchedNames.push(finalName);
+          const member = memberMap.get(finalName)!;
           
           const existingMonthStr = member.attendances[currentMonthKey] || '';
           const existingDays = existingMonthStr.split(',').map(s => s.trim()).filter(Boolean);
 
-          // Simple clean day number
           if (!existingDays.includes(currentDay)) {
             existingDays.push(currentDay);
             existingDays.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
             member.attendances[currentMonthKey] = existingDays.join(', ');
           }
-        });
-
-        if (matchedNames.length > 0) {
-          detectedEvents.push({
-            date: `${currentYear}.${currentMonth}.${currentDay}`,
-            title: '모임',
-            participants: matchedNames
-          });
         }
+      });
+
+      if (matchedNames.length > 0) {
+        detectedEvents.push({
+          date: `${currentYear}.${currentMonth}.${currentDay}`,
+          title: '모임',
+          participants: matchedNames
+        });
       }
     }
   });
@@ -117,8 +136,20 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   return {
     members: sortedMembers,
     parsedLogsCount,
+    unmatchedTags,
     detectedEvents
   };
+}
+
+// Longest match algorithm against registered names
+function findLongestMatchingMember(atSegment: string, sortedMemberNames: string[]): string | null {
+  const cleanSegment = atSegment.trim();
+  for (const name of sortedMemberNames) {
+    if (cleanSegment.startsWith(name)) {
+      return name;
+    }
+  }
+  return null;
 }
 
 export function parseRosterText(rosterText: string, currentMembers: Member[]): Member[] {
@@ -160,10 +191,4 @@ function cleanMemberName(raw: string): string {
   }
 
   return cleaned;
-}
-
-function extractMentions(text: string): string[] {
-  const matches = text.match(/@[^\s@]+/g);
-  if (!matches) return [];
-  return matches.map(m => m.replace(/^@/, '').trim());
 }

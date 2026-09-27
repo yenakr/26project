@@ -1,22 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, Download, UserPlus, RefreshCw } from 'lucide-react';
-import { Member, ParseResult } from '../types/attendance';
+import { Upload, FileText, Download, UserPlus, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Member, ParseResult, UnmatchedTag } from '../types/attendance';
 import { parseKakaoTalkLog, parseRosterText } from '../utils/parser';
 import { StatsOverview } from '../components/StatsOverview';
 import { AttendanceTable } from '../components/AttendanceTable';
 import { FileUploaderModal } from '../components/FileUploaderModal';
 import { RosterImportModal } from '../components/RosterImportModal';
+import { UnmatchedTagsModal } from '../components/UnmatchedTagsModal';
 import { MemberModal } from '../components/MemberModal';
 
 export default function Home() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [unmatchedTags, setUnmatchedTags] = useState<UnmatchedTag[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
   // Modals
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [isRosterImportOpen, setIsRosterImportOpen] = useState(false);
+  const [isUnmatchedModalOpen, setIsUnmatchedModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null | 'new'>(null);
 
   // Load stored state
@@ -50,6 +53,7 @@ export default function Home() {
       if (text) {
         const result: ParseResult = parseKakaoTalkLog(text, members);
         saveState(result.members);
+        setUnmatchedTags(result.unmatchedTags || []);
       }
     };
     reader.readAsText(file, 'utf-8');
@@ -58,6 +62,25 @@ export default function Home() {
   const handleRosterImport = (rosterText: string) => {
     const updated = parseRosterText(rosterText, members);
     saveState(updated);
+
+    // Re-verify unmatched tags against newly imported roster names
+    const filteredUnmatched = unmatchedTags.filter(
+      (tag) => !updated.some((m) => m.name.includes(tag.extractedName) || tag.rawMention.includes(m.name))
+    );
+    setUnmatchedTags(filteredUnmatched);
+  };
+
+  const handleResolveUnmatchedTag = (extractedName: string, correctName: string) => {
+    const updated = members.map((m) => {
+      if (m.name === extractedName) {
+        return { ...m, name: correctName };
+      }
+      return m;
+    });
+
+    saveState(updated);
+    setUnmatchedTags((prev) => prev.filter((t) => t.extractedName !== extractedName));
+    if (unmatchedTags.length <= 1) setIsUnmatchedModalOpen(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -104,6 +127,7 @@ export default function Home() {
   const handleClearAll = () => {
     if (confirm('현재 출석부 데이터를 초기화하시겠습니까?')) {
       setMembers([]);
+      setUnmatchedTags([]);
       localStorage.removeItem('crew_attendance_minimal_v2');
     }
   };
@@ -131,7 +155,7 @@ export default function Home() {
       {/* Main Body */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col">
         {members.length === 0 ? (
-          /* Initial Clean Drop Zone - Only txt upload */
+          /* Initial Clean Drop Zone */
           <div className="flex-1 flex flex-col items-center justify-center py-16">
             <div
               onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -176,6 +200,24 @@ export default function Home() {
           </div>
         ) : (
           <>
+            {/* Unmatched Tag Alert Banner if any */}
+            {unmatchedTags.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-5 flex items-center justify-between animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 text-xs text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    확인이 필요한 이름 <strong>{unmatchedTags.length}개</strong> (예: &apos;{unmatchedTags[0].extractedName}&apos;)가 감지되었습니다.
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsUnmatchedModalOpen(true)}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-2xs transition"
+                >
+                  확인하기
+                </button>
+              </div>
+            )}
+
             {/* KPI Stats */}
             <StatsOverview members={members} />
 
@@ -209,6 +251,15 @@ export default function Home() {
         <RosterImportModal
           onImportNames={(text) => handleRosterImport(text)}
           onClose={() => setIsRosterImportOpen(false)}
+        />
+      )}
+
+      {isUnmatchedModalOpen && (
+        <UnmatchedTagsModal
+          unmatchedTags={unmatchedTags}
+          members={members}
+          onResolveTag={handleResolveUnmatchedTag}
+          onClose={() => setIsUnmatchedModalOpen(false)}
         />
       )}
 
