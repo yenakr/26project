@@ -393,13 +393,14 @@ export default function Home() {
                   {isProcessingFile ? '대화록 분석 중...' : '카카오톡 대화록 파일 선택'}
                 </h2>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  카톡 대화 내용 텍스트 파일(.txt)을 선택하거나 올려주세요.
+                  카톡 대화 내용 파일(.txt 또는 .csv)을 선택하거나 올려주세요.
                 </p>
               </div>
 
               <div className="flex items-center justify-center">
                 <input
                   type="file"
+                  accept=".txt,.csv"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileUpload(file);

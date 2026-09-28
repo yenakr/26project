@@ -85,12 +85,13 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
             </div>
             <div>
               <p className="text-xs font-bold text-slate-900">
-                {isLoading ? '대화록 분석 중...' : '.txt 파일 선택 또는 드래그'}
+                {isLoading ? '대화록 분석 중...' : '.txt / .csv 파일 선택 또는 드래그'}
               </p>
-              <p className="text-[11px] text-slate-400 mt-0.5">카카오톡 내보내기 텍스트 파일</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">카카오톡 내보내기 텍스트 / CSV 파일</p>
             </div>
             <input
               type="file"
+              accept=".txt,.csv"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleFile(file);

@@ -35,6 +35,13 @@ export function decodeFileBuffer(buffer: ArrayBuffer): string {
 }
 
 export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []): ParseResult {
+  const cleanHead = logText.trim();
+  const isCsvFormat = /^(?:\uFEFF)?Date,User,Message/i.test(cleanHead) || /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/m.test(cleanHead);
+
+  if (isCsvFormat) {
+    return parseKakaoCsvLog(logText, currentMembers);
+  }
+
   const lines = logText.split(/\r?\n/);
   
   let currentYear = '26';
@@ -319,21 +326,34 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     }
   });
 
-  // Post-processing: Automatically merge single-candidate given name aliases (e.g., "규태" -> "강규태")
+  postProcessAutoMergeAliases(memberMap);
+
+  const sortedMembers = Array.from(memberMap.values())
+    .filter((m) => !isNonMemberName(m.name) && !isMojibakeName(m.name))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+  return {
+    members: sortedMembers,
+    parsedLogsCount,
+    unmatchedTags,
+    reviewItems,
+    detectedEvents
+  };
+}
+
+function postProcessAutoMergeAliases(memberMap: Map<string, Member>) {
   const allMemberNames = Array.from(memberMap.keys());
   const fullLengthNames = allMemberNames.filter((n) => n.length >= 3 && /^[가-힣]+$/.test(n));
 
   allMemberNames.forEach((shortName) => {
     if (shortName.length === 2 && /^[가-힣]{2}$/.test(shortName) && memberMap.has(shortName)) {
       const candidates = fullLengthNames.filter((full) => full.endsWith(shortName));
-      // Auto-merge ONLY if there is uniquely 1 matching candidate in the roster (no surname conflicts)
       if (candidates.length === 1) {
         const targetFullName = candidates[0];
         if (targetFullName !== shortName && memberMap.has(targetFullName)) {
           const sourceMember = memberMap.get(shortName)!;
           const targetMember = memberMap.get(targetFullName)!;
 
-          // Merge attendances
           Object.entries(sourceMember.attendances).forEach(([mKey, daysStr]) => {
             const targetDays = (targetMember.attendances[mKey] || '')
               .split(',')
@@ -350,7 +370,6 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
             targetMember.attendances[mKey] = combinedDays.join(', ');
           });
 
-          // Merge sources
           if (sourceMember.sources) {
             if (!targetMember.sources) targetMember.sources = {};
             Object.entries(sourceMember.sources).forEach(([dKey, srcList]) => {
@@ -363,12 +382,217 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
             });
           }
 
-          // Remove un-surnamed entry
           memberMap.delete(shortName);
         }
       }
     }
   });
+}
+
+function parseKakaoCsvLog(csvText: string, currentMembers: Member[] = []): ParseResult {
+  const memberMap = new Map<string, Member>();
+  const unmatchedTags: UnmatchedTag[] = [];
+  const reviewItems: ReviewItem[] = [];
+  const detectedEvents: { date: string; title: string; participants: string[] }[] = [];
+  let parsedLogsCount = 0;
+
+  currentMembers.forEach((m) => {
+    if (m.name && !isMojibakeName(m.name)) {
+      memberMap.set(m.name.trim(), {
+        ...m,
+        attendances: { ...m.attendances },
+        sources: m.sources ? { ...m.sources } : {}
+      });
+    }
+  });
+
+  const records = parseCsvRecords(csvText);
+
+  records.forEach((record) => {
+    const fullYearStr = record.fullYear;
+    const currentYear = fullYearStr.slice(2);
+    const currentMonth = String(parseInt(record.month, 10));
+    const currentDay = String(parseInt(record.day, 10));
+    const currentMonthKey = `${currentYear}.${currentMonth}`;
+
+    const ampmStr = record.ampm;
+    const timeStr = record.time;
+    const senderName = record.sender;
+    const messageText = record.message;
+
+    const isoDateStr = `${fullYearStr}-${currentMonth.padStart(2, '0')}-${currentDay.padStart(2, '0')}`;
+    const formattedTimestampStr = `${fullYearStr}.${currentMonth.padStart(2, '0')}.${currentDay.padStart(2, '0')} · ${ampmStr} ${timeStr}`;
+    const formattedFullDateStr = `${fullYearStr}년 ${currentMonth}월 ${currentDay}일 ${ampmStr} ${timeStr}`;
+
+    // User Joined event
+    const joinMatch = messageText.match(/(.+?)님이 들어왔습니다\./);
+    if (joinMatch) {
+      const rawName = joinMatch[1].split(',').pop()?.trim() || joinMatch[1].trim();
+      const cleanName = cleanMemberName(rawName);
+      if (cleanName && !memberMap.has(cleanName)) {
+        memberMap.set(cleanName, {
+          id: String(Date.now() + Math.random()),
+          name: cleanName,
+          attendances: {},
+          sources: {},
+          joinDate: isoDateStr
+        });
+      } else if (cleanName && memberMap.has(cleanName)) {
+        const existing = memberMap.get(cleanName)!;
+        if (!existing.joinDate) existing.joinDate = isoDateStr;
+      }
+    }
+
+    // User Left / Kicked event
+    const leftMatch = messageText.match(/(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./);
+    if (leftMatch) {
+      const rawName = leftMatch[1].split(',').pop()?.trim() || leftMatch[1].trim();
+      const cleanName = cleanMemberName(rawName);
+      if (cleanName) {
+        if (!memberMap.has(cleanName)) {
+          memberMap.set(cleanName, {
+            id: String(Date.now() + Math.random()),
+            name: cleanName,
+            attendances: {},
+            sources: {},
+            leaveDate: isoDateStr
+          });
+        } else {
+          const existing = memberMap.get(cleanName)!;
+          existing.leaveDate = isoDateStr;
+        }
+      }
+    }
+
+    // Process @mentions
+    if (messageText.includes('@')) {
+      const rawAtSegments = messageText.split('@').slice(1);
+      const validMentionsInLine: string[] = [];
+
+      rawAtSegments.forEach((segment) => {
+        if (!segment.trim()) return;
+
+        if (isNonMemberHandle(segment, messageText, Array.from(memberMap.keys()))) {
+          return;
+        }
+
+        const registeredNames = Array.from(memberMap.keys()).sort((a, b) => b.length - a.length);
+        const longestMatch = findLongestMatchingMember(segment, registeredNames);
+
+        let targetName = '';
+        if (longestMatch) {
+          targetName = longestMatch;
+        } else {
+          const rawToken = segment.split(/\s+/)[0].trim();
+          const clean = cleanMemberName(rawToken);
+          targetName = resolveGivenNameAlias(clean, registeredNames);
+        }
+
+        if (targetName && targetName.length >= 2 && !validMentionsInLine.includes(targetName)) {
+          validMentionsInLine.push(targetName);
+        }
+      });
+
+      if (validMentionsInLine.length > 0) {
+        const isFutureOrQuestion = isQuestionOrFutureMessage(messageText);
+        const isRetrospective = isRetrospectiveMessage(messageText);
+
+        if (isFutureOrQuestion || (validMentionsInLine.length === 1 && !isRetrospective)) {
+          reviewItems.push({
+            id: String(Date.now() + Math.random()),
+            timestampStr: formattedTimestampStr,
+            formattedDate: formattedFullDateStr,
+            year: currentYear,
+            month: currentMonth,
+            day: currentDay,
+            monthKey: currentMonthKey,
+            sender: senderName || '카카오톡',
+            fullMessage: messageText,
+            candidates: validMentionsInLine.map((name) => ({ name, isSelected: true }))
+          });
+
+          if (validMentionsInLine.length === 1) {
+            unmatchedTags.push({
+              id: String(Date.now() + Math.random()),
+              rawMention: validMentionsInLine[0],
+              extractedName: validMentionsInLine[0],
+              lineText: `${record.timestamp} ${senderName}: ${messageText}`,
+              date: `${currentYear}.${currentMonth}.${currentDay}`,
+              score: 1,
+              reason: '검토 필요 메시지'
+            });
+          }
+        } else {
+          // Definite attendance
+          if (senderName) {
+            const registeredNames = Array.from(memberMap.keys()).sort((a, b) => b.length - a.length);
+            const longestMatchSender = findLongestMatchingMember(senderName, registeredNames);
+            const clean = longestMatchSender || cleanMemberName(senderName);
+            const cleanSender = resolveGivenNameAlias(clean, registeredNames);
+
+            if (
+              cleanSender &&
+              cleanSender.length >= 2 &&
+              !isNonMemberName(cleanSender) &&
+              !isMojibakeName(cleanSender) &&
+              !validMentionsInLine.includes(cleanSender)
+            ) {
+              validMentionsInLine.push(cleanSender);
+            }
+          }
+
+          parsedLogsCount++;
+          const sourceObj: AttendanceSource = {
+            id: String(Date.now() + Math.random()),
+            timestamp: formattedFullDateStr,
+            sender: senderName || '카카오톡',
+            message: messageText,
+            decisionType: 'auto'
+          };
+
+          const dayKey = `${currentMonthKey}.${currentDay}`;
+
+          validMentionsInLine.forEach((name) => {
+            if (!memberMap.has(name)) {
+              memberMap.set(name, {
+                id: String(Date.now() + Math.random()),
+                name,
+                attendances: {},
+                sources: {},
+                joinDate: isoDateStr
+              });
+            }
+
+            const member = memberMap.get(name)!;
+            const existingMonthStr = member.attendances[currentMonthKey] || '';
+            const existingDays = existingMonthStr.split(',').map((s) => s.trim()).filter(Boolean);
+
+            if (!existingDays.includes(currentDay)) {
+              existingDays.push(currentDay);
+              existingDays.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+              member.attendances[currentMonthKey] = existingDays.join(', ');
+            }
+
+            if (!member.sources) member.sources = {};
+            if (!member.sources[dayKey]) member.sources[dayKey] = [];
+
+            const alreadyHasSource = member.sources[dayKey].some((s) => s.message === messageText);
+            if (!alreadyHasSource) {
+              member.sources[dayKey].push(sourceObj);
+            }
+          });
+
+          detectedEvents.push({
+            date: `${currentYear}.${currentMonth}.${currentDay}`,
+            title: '출석 인증',
+            participants: validMentionsInLine
+          });
+        }
+      }
+    }
+  });
+
+  postProcessAutoMergeAliases(memberMap);
 
   const sortedMembers = Array.from(memberMap.values())
     .filter((m) => !isNonMemberName(m.name) && !isMojibakeName(m.name))
@@ -381,6 +605,112 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     reviewItems,
     detectedEvents
   };
+}
+
+interface CsvRecord {
+  fullYear: string;
+  month: string;
+  day: string;
+  ampm: string;
+  time: string;
+  timestamp: string;
+  sender: string;
+  message: string;
+}
+
+function parseCsvRecords(csvText: string): CsvRecord[] {
+  const results: CsvRecord[] = [];
+  let i = 0;
+  const len = csvText.length;
+
+  if (csvText.startsWith('Date,User,Message') || csvText.startsWith('\uFEFFDate,User,Message')) {
+    const eol = csvText.indexOf('\n');
+    if (eol !== -1) i = eol + 1;
+  }
+
+  while (i < len) {
+    const sub = csvText.slice(i, i + 35);
+    const dateMatch = sub.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})[,,\s]/);
+    if (!dateMatch) {
+      const nextN = csvText.indexOf('\n', i);
+      if (nextN === -1) break;
+      i = nextN + 1;
+      continue;
+    }
+
+    const fullYear = dateMatch[1];
+    const month = dateMatch[2];
+    const day = dateMatch[3];
+    const hourNum = parseInt(dateMatch[4], 10);
+    const minStr = dateMatch[5];
+    const ampm = hourNum >= 12 ? '오후' : '오전';
+    const displayHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
+    const time = `${displayHour}:${minStr}`;
+
+    i += dateMatch[0].length;
+
+    let sender = '';
+    if (i < len && csvText[i] === '"') {
+      i++;
+      let endQuote = csvText.indexOf('",', i);
+      if (endQuote === -1) endQuote = csvText.indexOf('"\n', i);
+      if (endQuote !== -1) {
+        sender = csvText.slice(i, endQuote).replace(/""/g, '"');
+        i = endQuote + 2;
+      }
+    } else {
+      const comma = csvText.indexOf(',', i);
+      if (comma !== -1) {
+        sender = csvText.slice(i, comma);
+        i = comma + 1;
+      }
+    }
+
+    let message = '';
+    if (i < len && csvText[i] === '"') {
+      i++;
+      let msgBuf = '';
+      while (i < len) {
+        if (csvText[i] === '"') {
+          if (i + 1 < len && csvText[i + 1] === '"') {
+            msgBuf += '"';
+            i += 2;
+          } else {
+            i++;
+            break;
+          }
+        } else {
+          msgBuf += csvText[i];
+          i++;
+        }
+      }
+      message = msgBuf;
+      if (i < len && csvText[i] === '\r') i++;
+      if (i < len && csvText[i] === '\n') i++;
+    } else {
+      const eol = csvText.indexOf('\n', i);
+      if (eol !== -1) {
+        message = csvText.slice(i, eol).trim();
+        i = eol + 1;
+      } else {
+        message = csvText.slice(i).trim();
+        i = len;
+      }
+    }
+
+    results.push({
+      fullYear,
+      month,
+      day,
+      ampm,
+      time,
+      timestamp: `${fullYear}-${month}-${day}`,
+      sender: sender.trim(),
+      message: message.trim()
+    });
+  }
+
+  return results;
 }
 
 function isQuestionOrFutureMessage(text: string): boolean {
