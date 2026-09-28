@@ -180,7 +180,8 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
           targetName = longestMatch;
         } else {
           const rawToken = segment.split(/\s+/)[0].trim();
-          targetName = cleanMemberName(rawToken);
+          const clean = cleanMemberName(rawToken);
+          targetName = resolveGivenNameAlias(clean, registeredNames);
         }
 
         if (targetName && targetName.length >= 2 && !validMentionsInLine.includes(targetName)) {
@@ -226,7 +227,8 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
           if (senderName) {
             const registeredNames = Array.from(memberMap.keys()).sort((a, b) => b.length - a.length);
             const longestMatchSender = findLongestMatchingMember(senderName, registeredNames);
-            const cleanSender = longestMatchSender || cleanMemberName(senderName);
+            const clean = longestMatchSender || cleanMemberName(senderName);
+            const cleanSender = resolveGivenNameAlias(clean, registeredNames);
 
             if (
               cleanSender &&
@@ -286,6 +288,57 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
             title: '출석 인증',
             participants: validMentionsInLine
           });
+        }
+      }
+    }
+  });
+
+  // Post-processing: Automatically merge single-candidate given name aliases (e.g., "규태" -> "강규태")
+  const allMemberNames = Array.from(memberMap.keys());
+  const fullLengthNames = allMemberNames.filter((n) => n.length >= 3 && /^[가-힣]+$/.test(n));
+
+  allMemberNames.forEach((shortName) => {
+    if (shortName.length === 2 && /^[가-힣]{2}$/.test(shortName) && memberMap.has(shortName)) {
+      const candidates = fullLengthNames.filter((full) => full.endsWith(shortName));
+      // Auto-merge ONLY if there is uniquely 1 matching candidate in the roster (no surname conflicts)
+      if (candidates.length === 1) {
+        const targetFullName = candidates[0];
+        if (targetFullName !== shortName && memberMap.has(targetFullName)) {
+          const sourceMember = memberMap.get(shortName)!;
+          const targetMember = memberMap.get(targetFullName)!;
+
+          // Merge attendances
+          Object.entries(sourceMember.attendances).forEach(([mKey, daysStr]) => {
+            const targetDays = (targetMember.attendances[mKey] || '')
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const sourceDays = daysStr
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+
+            const combinedDays = Array.from(new Set([...targetDays, ...sourceDays])).sort(
+              (a, b) => parseInt(a, 10) - parseInt(b, 10)
+            );
+            targetMember.attendances[mKey] = combinedDays.join(', ');
+          });
+
+          // Merge sources
+          if (sourceMember.sources) {
+            if (!targetMember.sources) targetMember.sources = {};
+            Object.entries(sourceMember.sources).forEach(([dKey, srcList]) => {
+              if (!targetMember.sources![dKey]) targetMember.sources![dKey] = [];
+              srcList.forEach((src) => {
+                if (!targetMember.sources![dKey].some((e) => e.message === src.message)) {
+                  targetMember.sources![dKey].push(src);
+                }
+              });
+            });
+          }
+
+          // Remove un-surnamed entry
+          memberMap.delete(shortName);
         }
       }
     }
@@ -408,3 +461,27 @@ export function isMojibakeName(name: string): boolean {
   if (/^[\u4E00-\u9FFF]{2,}/.test(name)) return true;
   return false;
 }
+
+export function resolveGivenNameAlias(rawName: string, registeredNames: string[]): string {
+  const clean = cleanMemberName(rawName);
+  if (!clean || clean.length < 2) return clean;
+
+  // Exact match
+  if (registeredNames.includes(clean)) {
+    return clean;
+  }
+
+  // If clean is 2 or 3 Korean characters (e.g. "규태"), check registered names ending with "규태" (e.g. "강규태")
+  if (/^[가-힣]{2,3}$/.test(clean)) {
+    const candidates = registeredNames.filter(
+      (full) => full.length > clean.length && full.endsWith(clean)
+    );
+    // Auto-resolve ONLY if uniquely matching 1 candidate (no surname conflicts like 강규태 & 김규태)
+    if (candidates.length === 1) {
+      return candidates[0];
+    }
+  }
+
+  return clean;
+}
+
