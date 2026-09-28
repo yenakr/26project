@@ -414,7 +414,7 @@ export default function Home() {
                   className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold text-sm rounded-xl shadow-xs cursor-pointer transition flex items-center gap-2 touch-manipulation"
                 >
                   <Upload className="w-4 h-4" />
-                  카톡 txt 불러오기
+                  대화록 불러오기
                 </label>
               </div>
             </div>

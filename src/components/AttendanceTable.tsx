@@ -405,7 +405,7 @@ export function AttendanceTable({
               className="py-1.5 px-3 bg-white hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg border border-slate-200 shadow-2xs flex items-center gap-1 transition"
             >
               <Upload className="w-3.5 h-3.5 text-slate-600" />
-              카톡 txt 업로드
+              대화록 불러오기
             </button>
             <button
               onClick={onAddMember}
