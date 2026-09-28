@@ -139,7 +139,12 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     // User Joined event
     const joinMatch = trimmed.match(userJoinedRegex);
     if (joinMatch) {
-      const rawName = joinMatch[1].split(',').pop()?.trim() || joinMatch[1].trim();
+      if (joinMatch[1] && joinMatch[2] && joinMatch[3]) {
+        currentYear = joinMatch[1].slice(2);
+        currentMonth = joinMatch[2];
+        currentDay = joinMatch[3];
+      }
+      const rawName = joinMatch[4].split(',').pop()?.trim() || joinMatch[4].trim();
       const cleanName = cleanMemberName(rawName);
       if (cleanName && !memberMap.has(cleanName)) {
         memberMap.set(cleanName, {
@@ -158,7 +163,12 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     // User Left / Kicked event
     const leftMatch = trimmed.match(userLeftRegex);
     if (leftMatch) {
-      const rawName = leftMatch[1].split(',').pop()?.trim() || leftMatch[1].trim();
+      if (leftMatch[1] && leftMatch[2] && leftMatch[3]) {
+        currentYear = leftMatch[1].slice(2);
+        currentMonth = leftMatch[2];
+        currentDay = leftMatch[3];
+      }
+      const rawName = leftMatch[4].split(',').pop()?.trim() || leftMatch[4].trim();
       const cleanName = cleanMemberName(rawName);
       if (cleanName) {
         if (!memberMap.has(cleanName)) {
