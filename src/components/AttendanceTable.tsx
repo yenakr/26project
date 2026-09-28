@@ -654,7 +654,7 @@ export function AttendanceTable({
                   {/* Progress Bar (Relative to Total Crew Events) */}
                   <div>
                     <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
-                      <span>전체 세션 대비 출석률</span>
+                      <span>출석률</span>
                       <span>
                         {totalCount} / {totalCrewEventsCount}회 ({sessionAttendanceRate}%)
                       </span>
