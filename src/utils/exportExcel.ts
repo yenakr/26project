@@ -128,11 +128,11 @@ export async function exportToExcel(
     // Cell: Status
     const cellStatus = row.getCell(4 + months.length);
     if (isCompleted) {
-      cellStatus.value = `달성 · ${totalCount}회`;
+      cellStatus.value = `${totalCount}회`;
       cellStatus.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FF065F46' } };
       cellStatus.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
     } else {
-      cellStatus.value = `미달 · ${totalCount}/${targetCount}회`;
+      cellStatus.value = `${totalCount}/${targetCount}회`;
       cellStatus.font = { name: '맑은 고딕', size: 10, color: { argb: 'FF64748B' } };
       cellStatus.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
     }

@@ -553,7 +553,7 @@ export function AttendanceTable({
                       {/* Right Sticky Body Cell: Status */}
                       <td className="py-2.5 px-2 sm:py-3 sm:px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                         <span
-                          className={`inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-semibold whitespace-nowrap ${
+                          className={`inline-block px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-bold whitespace-nowrap ${
                             isCompleted
                               ? 'bg-slate-900 text-white'
                               : totalCount > 0
@@ -561,7 +561,7 @@ export function AttendanceTable({
                               : 'bg-slate-50 text-slate-400 border border-slate-200/60'
                           }`}
                         >
-                          {isCompleted ? `달성 · ${totalCount}회` : `미달 · ${totalCount}/${targetCount}회`}
+                          {isCompleted ? `${totalCount}회` : `${totalCount}/${targetCount}회`}
                         </span>
                       </td>
 
@@ -629,7 +629,7 @@ export function AttendanceTable({
                           : 'bg-slate-50 text-slate-400 border border-slate-200/60'
                       }`}
                     >
-                      {isCompleted ? `달성 · ${totalCount}회` : `미달 · ${totalCount}/${targetCount}회`}
+                      {isCompleted ? `${totalCount}회` : `${totalCount}/${targetCount}회`}
                     </span>
                   </div>
 

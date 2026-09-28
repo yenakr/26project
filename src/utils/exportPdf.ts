@@ -141,7 +141,7 @@ export async function exportToPdf(
               ? 'background: #0f172a; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
               : 'background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-block;';
 
-            const statusText = isCompleted ? `달성 · ${total}회` : `미달 · ${total}/${target}회`;
+            const statusText = isCompleted ? `${total}회` : `${total}/${target}회`;
 
             return `
               <tr style="background-color: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
