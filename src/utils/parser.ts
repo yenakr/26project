@@ -62,27 +62,27 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   let parsedLogsCount = 0;
 
   const dateHeaderRegex = /^---+ (\d{4})년 (\d{1,2})월 (\d{1,2})일\s*([월화수목금토일]요일)? ---+/;
-  const simpleDateHeaderRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*([월화수목금토일]요일))?(?:\s*(오전|오후)\s*\d{1,2}:\d{2})?\s*$/;
-  const dotDateHeaderRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*$/;
+  const simpleDateHeaderRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*([월화수목금토일]요일))?$/;
+  const dotDateHeaderRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?$/;
 
-  // KakaoTalk Line Format 1: 2026. 9. 15. 오후 9:55, 유지훈 Hun : @태그들...
-  const kakaoDotLineRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}:\d{2}),?\s*(.+?)\s*:\s*(.*)$/;
+  // KakaoTalk Line Format 1 (Dot format): 2026. 9. 15. 오후 9:55, 유지훈 Hun : @태그들... or 2026. 3. 16. 오전 10:18: 김용준...
+  const kakaoDotLineRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}:\d{2}(?::\d{2})?)[,:]\s*(.+?)\s*:\s*(.*)$/;
   
-  // KakaoTalk Line Format 2: 2026년 9월 15일 오후 9:55, 유지훈 Hun : @태그들...
-  const kakaoKorLineRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(오전|오후)\s*(\d{1,2}:\d{2}),?\s*(.+?)\s*:\s*(.*)$/;
+  // KakaoTalk Line Format 2 (Korean format): 2026년 9월 15일 오후 9:55, 유지훈 Hun : @태그들...
+  const kakaoKorLineRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(오전|오후)\s*(\d{1,2}:\d{2}(?::\d{2})?)[,:]\s*(.+?)\s*:\s*(.*)$/;
 
-  // KakaoTalk Line Format 3: [유지훈 Hun] [오후 9:55] @태그들...
+  // KakaoTalk Line Format 3 ([Sender] [Time] Message)
   const kakaoBracketMsgRegex = /^\[(.+?)\]\s*\[(오전|오후)\s*(\d{1,2}:\d{2})\]\s*(.*)$/;
 
-  const userJoinedRegex = /(?:(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(?:오전|오후)\s*\d{1,2}:\d{2},?\s*)?(.+?)님이 들어왔습니다\./;
-  const userLeftRegex = /(?:(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(?:오전|오후)\s*\d{1,2}:\d{2},?\s*)?(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./;
+  const userJoinedRegex = /(?:(\d{4})[\.년]\s*(\d{1,2})[\.월]\s*(\d{1,2})[\.일]?\s*(?:오전|오후)\s*\d{1,2}:\d{2}(?::\d{2})?[,:]\s*)?(.+?)님이 들어왔습니다\./;
+  const userLeftRegex = /(?:(\d{4})[\.년]\s*(\d{1,2})[\.월]\s*(\d{1,2})[\.일]?\s*(?:오전|오후)\s*\d{1,2}:\d{2}(?::\d{2})?[,:]\s*)?(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./;
 
   lines.forEach((line) => {
     const trimmed = line.trim();
     if (!trimmed) return;
 
     // Check Header line formats (must match standalone date line)
-    const headerMatch = trimmed.match(dateHeaderRegex) || trimmed.match(simpleDateHeaderRegex);
+    const headerMatch = trimmed.match(dateHeaderRegex) || trimmed.match(simpleDateHeaderRegex) || trimmed.match(dotDateHeaderRegex);
     if (headerMatch) {
       currentYear = headerMatch[1].slice(2);
       currentMonth = headerMatch[2];
@@ -92,40 +92,43 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
       return;
     }
 
-    const dotHeaderMatch = trimmed.match(dotDateHeaderRegex);
-    if (dotHeaderMatch) {
-      currentYear = dotHeaderMatch[1].slice(2);
-      currentMonth = dotHeaderMatch[2];
-      currentDay = dotHeaderMatch[3];
-      currentMonthKey = `${currentYear}.${currentMonth}`;
-      return;
-    }
-
     let senderName = '';
     let ampmStr = '오후';
     let timeStr = '12:00';
     let messageText = trimmed;
+    let isFullLineMatch = false;
 
-    // Check Kakao Format 1 & 2 (Date + Time + Sender + Message in one line)
-    const fullLineMatch = trimmed.match(kakaoDotLineRegex) || trimmed.match(kakaoKorLineRegex);
-    if (fullLineMatch) {
-      currentYear = fullLineMatch[1].slice(2);
-      currentMonth = fullLineMatch[2];
-      currentDay = fullLineMatch[3];
+    // Check Kakao Formats (Date + Time + Sender + Message in one line)
+    const dotMatch = trimmed.match(kakaoDotLineRegex);
+    const korMatch = !dotMatch ? trimmed.match(kakaoKorLineRegex) : null;
+    const bracketMatch = !dotMatch && !korMatch ? trimmed.match(kakaoBracketMsgRegex) : null;
+
+    if (dotMatch) {
+      isFullLineMatch = true;
+      currentYear = dotMatch[1].slice(2);
+      currentMonth = dotMatch[2];
+      currentDay = dotMatch[3];
       currentMonthKey = `${currentYear}.${currentMonth}`;
-      ampmStr = fullLineMatch[4];
-      timeStr = fullLineMatch[5];
-      senderName = fullLineMatch[6].trim();
-      messageText = fullLineMatch[7];
-    } else {
-      // Check Kakao Format 3 ([Sender] [Time] Message)
-      const bracketMatch = trimmed.match(kakaoBracketMsgRegex);
-      if (bracketMatch) {
-        senderName = bracketMatch[1].trim();
-        ampmStr = bracketMatch[2];
-        timeStr = bracketMatch[3];
-        messageText = bracketMatch[4];
-      }
+      ampmStr = dotMatch[4];
+      timeStr = dotMatch[5];
+      senderName = dotMatch[6].trim();
+      messageText = dotMatch[7];
+    } else if (korMatch) {
+      isFullLineMatch = true;
+      currentYear = korMatch[1].slice(2);
+      currentMonth = korMatch[2];
+      currentDay = korMatch[3];
+      currentMonthKey = `${currentYear}.${currentMonth}`;
+      ampmStr = korMatch[4];
+      timeStr = korMatch[5];
+      senderName = korMatch[6].trim();
+      messageText = korMatch[7];
+    } else if (bracketMatch) {
+      isFullLineMatch = true;
+      senderName = bracketMatch[1].trim();
+      ampmStr = bracketMatch[2];
+      timeStr = bracketMatch[3];
+      messageText = bracketMatch[4];
     }
 
     const fullYearStr = `20${currentYear}`;
