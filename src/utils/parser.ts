@@ -726,7 +726,7 @@ function isRetrospectiveMessage(text: string): boolean {
 function isNonMemberHandle(segment: string, lineText: string, registeredNames: string[]): boolean {
   const token = segment.split(/\s+/)[0].trim();
 
-  if (/^(all|garmin_korea|official|wtdeyewear|bushman_life|멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡)$/i.test(token)) {
+  if (/^(all|garmin_korea|official|wtdeyewear|bushman_life|오픈채팅봇|방장bot|알림봇|멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡)$/i.test(token)) {
     return true;
   }
 
@@ -792,7 +792,6 @@ export function cleanMemberName(raw: string): string {
     .normalize('NFC')
     .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
     .replace(/^@/, '')
-    .replace(/ Hun$/, '')
     .replace(/님$/, '')
     .replace(/[\(\[\{].*?[\)\]\}]/g, '')
     .trim();
@@ -803,7 +802,12 @@ export function cleanMemberName(raw: string): string {
 
   const words = cleaned.split(/\s+/);
   if (words.length > 1) {
+    const firstWord = words[0];
     const lastWord = words[words.length - 1];
+
+    if (/^[가-힣]{2,4}$/.test(firstWord)) {
+      return firstWord;
+    }
     if (/^[가-힣]{2,4}$/.test(lastWord)) {
       return lastWord;
     }
@@ -815,7 +819,7 @@ export function cleanMemberName(raw: string): string {
 export function isNonMemberName(name: string): boolean {
   const trimmed = name.trim();
   if (/^\d+년?$/i.test(trimmed) || /^\d+$/.test(trimmed)) return true;
-  return /^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(trimmed);
+  return /^(오픈채팅봇|방장bot|알림봇|멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(trimmed);
 }
 
 export function isMojibakeName(name: string): boolean {
