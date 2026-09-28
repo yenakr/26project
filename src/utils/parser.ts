@@ -62,23 +62,26 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   let parsedLogsCount = 0;
 
   const dateHeaderRegex = /^---+ (\d{4})년 (\d{1,2})월 (\d{1,2})일\s*([월화수목금토일]요일)? ---+/;
-  const simpleDateHeaderRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*([월화수목금토일]요일))?/;
+  const simpleDateHeaderRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*([월화수목금토일]요일))?(?:\s*(오전|오후)\s*\d{1,2}:\d{2})?\s*$/;
   const dotDateHeaderRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*$/;
 
   // KakaoTalk Line Format 1: 2026. 9. 15. 오후 9:55, 유지훈 Hun : @태그들...
-  const kakaoFullLineRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}:\d{2}),?\s*(.+?)\s*:\s*(.*)$/;
+  const kakaoDotLineRegex = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}:\d{2}),?\s*(.+?)\s*:\s*(.*)$/;
   
-  // KakaoTalk Line Format 2: [유지훈 Hun] [오후 9:55] @태그들...
+  // KakaoTalk Line Format 2: 2026년 9월 15일 오후 9:55, 유지훈 Hun : @태그들...
+  const kakaoKorLineRegex = /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(오전|오후)\s*(\d{1,2}:\d{2}),?\s*(.+?)\s*:\s*(.*)$/;
+
+  // KakaoTalk Line Format 3: [유지훈 Hun] [오후 9:55] @태그들...
   const kakaoBracketMsgRegex = /^\[(.+?)\]\s*\[(오전|오후)\s*(\d{1,2}:\d{2})\]\s*(.*)$/;
 
-  const userJoinedRegex = /(.+?)님이 들어왔습니다\./;
-  const userLeftRegex = /(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./;
+  const userJoinedRegex = /(?:(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(?:오전|오후)\s*\d{1,2}:\d{2},?\s*)?(.+?)님이 들어왔습니다\./;
+  const userLeftRegex = /(?:(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*(?:오전|오후)\s*\d{1,2}:\d{2},?\s*)?(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./;
 
   lines.forEach((line) => {
     const trimmed = line.trim();
     if (!trimmed) return;
 
-    // Check Header line formats
+    // Check Header line formats (must match standalone date line)
     const headerMatch = trimmed.match(dateHeaderRegex) || trimmed.match(simpleDateHeaderRegex);
     if (headerMatch) {
       currentYear = headerMatch[1].slice(2);
@@ -103,8 +106,8 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     let timeStr = '12:00';
     let messageText = trimmed;
 
-    // Check Kakao Format 1 (Date + Time + Sender + Message in one line)
-    const fullLineMatch = trimmed.match(kakaoFullLineRegex);
+    // Check Kakao Format 1 & 2 (Date + Time + Sender + Message in one line)
+    const fullLineMatch = trimmed.match(kakaoDotLineRegex) || trimmed.match(kakaoKorLineRegex);
     if (fullLineMatch) {
       currentYear = fullLineMatch[1].slice(2);
       currentMonth = fullLineMatch[2];
@@ -115,7 +118,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
       senderName = fullLineMatch[6].trim();
       messageText = fullLineMatch[7];
     } else {
-      // Check Kakao Format 2 ([Sender] [Time] Message)
+      // Check Kakao Format 3 ([Sender] [Time] Message)
       const bracketMatch = trimmed.match(kakaoBracketMsgRegex);
       if (bracketMatch) {
         senderName = bracketMatch[1].trim();
