@@ -91,6 +91,22 @@ export function AttendanceTable({
 
   const activeMonths = selectedMonth === '전체' ? displayMonths : [selectedMonth];
 
+  // Calculate total distinct crew attendance events held across all members for active months
+  const totalCrewEventsSet = new Set<string>();
+  members.forEach((m) => {
+    activeMonths.forEach((mKey) => {
+      const daysStr = m.attendances[mKey];
+      if (daysStr && daysStr.trim()) {
+        daysStr
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .forEach((d) => totalCrewEventsSet.add(`${mKey}.${d}`));
+      }
+    });
+  });
+  const totalCrewEventsCount = totalCrewEventsSet.size;
+
   // Filter members based on semester active dates (joinDate & leaveDate)
   const semesterFilteredMembers = members.filter((m) => {
     if (m.joinDate && m.joinDate > currentSemesterObj.endDate) {
@@ -604,7 +620,9 @@ export function AttendanceTable({
               const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
               const targetCount = member.targetCount || 4;
               const isCompleted = totalCount >= targetCount;
-              const progressPercent = Math.min(Math.round((totalCount / targetCount) * 100), 100);
+              const sessionAttendanceRate =
+                totalCrewEventsCount > 0 ? Math.round((totalCount / totalCrewEventsCount) * 100) : 0;
+              const progressPercent = Math.min(sessionAttendanceRate, 100);
 
               return (
                 <div
@@ -633,16 +651,18 @@ export function AttendanceTable({
                     </span>
                   </div>
 
-                  {/* Progress Bar */}
+                  {/* Progress Bar (Relative to Total Crew Events) */}
                   <div>
                     <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
-                      <span>출석률</span>
-                      <span>{totalCount} / {targetCount}회 ({progressPercent}%)</span>
+                      <span>전체 세션 대비 출석률</span>
+                      <span>
+                        {totalCount} / {totalCrewEventsCount}회 ({sessionAttendanceRate}%)
+                      </span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${
-                          isCompleted ? 'bg-slate-900' : 'bg-slate-400'
+                          isCompleted ? 'bg-slate-900' : 'bg-slate-500'
                         }`}
                         style={{ width: `${progressPercent}%` }}
                       />
