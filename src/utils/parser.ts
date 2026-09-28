@@ -429,11 +429,16 @@ export function parseRosterText(rosterText: string, currentMembers: Member[]): M
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 }
 
-function cleanMemberName(raw: string): string {
+export function cleanMemberName(raw: string): string {
+  if (!raw) return '';
+
   let cleaned = raw
+    .normalize('NFC')
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
     .replace(/^@/, '')
     .replace(/ Hun$/, '')
     .replace(/님$/, '')
+    .replace(/[\(\[\{].*?[\)\]\}]/g, '')
     .trim();
 
   if (isNonMemberName(cleaned) || isMojibakeName(cleaned)) {

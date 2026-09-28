@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, HelpCircle, Loader2 } from 'lucide-react';
 import { Member, ParseResult, UnmatchedTag, ReviewItem, AttendanceSource } from '../types/attendance';
-import { parseKakaoTalkLog, parseRosterText, decodeFileBuffer, isNonMemberName, isMojibakeName } from '../utils/parser';
+import { parseKakaoTalkLog, parseRosterText, decodeFileBuffer, isNonMemberName, isMojibakeName, cleanMemberName } from '../utils/parser';
 import { StatsOverview } from '../components/StatsOverview';
 import { AttendanceTable } from '../components/AttendanceTable';
 import { FileUploaderModal } from '../components/FileUploaderModal';
@@ -36,8 +36,55 @@ export default function Home() {
     day: string;
   } | null>(null);
 
-  const filterValidMembers = (mList: Member[]) =>
-    mList.filter((m) => m.name && !isNonMemberName(m.name) && !isMojibakeName(m.name));
+  const filterValidMembers = (mList: Member[]) => {
+    const map = new Map<string, Member>();
+    mList.forEach((m) => {
+      if (!m.name || isNonMemberName(m.name) || isMojibakeName(m.name)) return;
+      const cleanName = cleanMemberName(m.name).normalize('NFC');
+      if (!cleanName) return;
+
+      if (!map.has(cleanName)) {
+        map.set(cleanName, { ...m, name: cleanName });
+      } else {
+        const existing = map.get(cleanName)!;
+        const mergedAttendances = { ...existing.attendances };
+        Object.entries(m.attendances).forEach(([mKey, daysStr]) => {
+          const targetDays = (mergedAttendances[mKey] || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const sourceDays = daysStr
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const combinedDays = Array.from(new Set([...targetDays, ...sourceDays])).sort(
+            (a, b) => parseInt(a, 10) - parseInt(b, 10)
+          );
+          mergedAttendances[mKey] = combinedDays.join(', ');
+        });
+
+        const mergedSources = existing.sources ? { ...existing.sources } : {};
+        if (m.sources) {
+          Object.entries(m.sources).forEach(([dKey, srcList]) => {
+            if (!mergedSources[dKey]) mergedSources[dKey] = [];
+            srcList.forEach((src) => {
+              if (!mergedSources[dKey].some((s) => s.message === src.message)) {
+                mergedSources[dKey].push(src);
+              }
+            });
+          });
+        }
+
+        map.set(cleanName, {
+          ...existing,
+          attendances: mergedAttendances,
+          sources: mergedSources
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  };
 
   // Load stored state
   useEffect(() => {
