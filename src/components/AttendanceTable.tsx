@@ -15,11 +15,16 @@ import {
   ChevronDown,
   ChevronUp,
   History,
-  GitMerge
+  GitMerge,
+  FileText,
+  Loader2,
+  Table as TableIcon,
+  LayoutGrid
 } from 'lucide-react';
 import { Member, SortOption, SemesterInfo, DEFAULT_SEMESTERS } from '../types/attendance';
 import { calculateTotalForMonths, sortMembers } from '../utils/helpers';
 import { exportToExcel } from '../utils/exportExcel';
+import { exportToPdf } from '../utils/exportPdf';
 
 interface AttendanceTableProps {
   members: Member[];
@@ -54,6 +59,10 @@ export function AttendanceTable({
 }: AttendanceTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('name_asc');
+  
+  // View Mode: 'table' (default) or 'card' (optimized for mobile)
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   
   // Global Edit Mode
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
@@ -112,6 +121,15 @@ export function AttendanceTable({
     if (editingCell) {
       onUpdateDays(editingCell.memberId, editingCell.month, cellValue);
       setEditingCell(null);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      await exportToPdf(sortedMembers, activeMonths, currentSemesterObj.name);
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -220,8 +238,9 @@ export function AttendanceTable({
       {/* Main Controls & Search Bar */}
       <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col gap-3">
         
-        {/* Prominent Name Search Bar & Actions */}
-        <div className="flex items-center gap-2">
+        {/* Search Bar & Export Buttons */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          {/* Search Bar */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -241,17 +260,41 @@ export function AttendanceTable({
             )}
           </div>
 
-          <button
-            onClick={() => exportToExcel(sortedMembers, activeMonths)}
-            className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs flex items-center gap-1.5 transition shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>엑셀 다운로드</span>
-          </button>
+          {/* PDF & Excel Download Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-700 text-white text-xs font-semibold rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition"
+              title="화면 레이아웃 그대로 PDF 문서 다운로드"
+            >
+              {isExportingPdf ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>PDF 생성 중...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>PDF 저장</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => exportToExcel(sortedMembers, activeMonths)}
+              className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-center gap-1.5 transition"
+              title="엑셀 스프레드시트 다운로드"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-600" />
+              <span>엑셀</span>
+            </button>
+          </div>
         </div>
 
-        {/* Period Filter & Sort */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+        {/* Period Filter, Sort & View Mode Switcher */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          
           {/* Period Selector */}
           <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200/80 overflow-x-auto max-w-full">
             <span className="text-[11px] text-slate-400 font-medium px-1.5 shrink-0 flex items-center gap-1">
@@ -278,18 +321,49 @@ export function AttendanceTable({
             ))}
           </div>
 
-          {/* Sort Selector (Simplified to 3 options) */}
-          <div className="flex items-center gap-1 shrink-0">
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:border-slate-900 outline-none bg-white text-slate-700 font-semibold cursor-pointer"
-            >
-              <option value="name_asc">가나다순</option>
-              <option value="count_desc">출석 많은 순</option>
-              <option value="count_asc">출석 적은 순</option>
-            </select>
+          {/* Right Controls: View Mode Switcher & Sort Selector */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* View Mode Switcher (Table vs Card) */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1 transition ${
+                  viewMode === 'table'
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="테이블 뷰"
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">테이블</span>
+              </button>
+              <button
+                onClick={() => setViewMode('card')}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg flex items-center gap-1 transition ${
+                  viewMode === 'card'
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="모바일 추천 카드 뷰 (스크롤 최소화)"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>카드 뷰</span>
+              </button>
+            </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-1">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value as SortOption)}
+                className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-xl focus:border-slate-900 outline-none bg-white text-slate-700 font-semibold cursor-pointer"
+              >
+                <option value="name_asc">가나다순</option>
+                <option value="count_desc">출석 많은 순</option>
+                <option value="count_asc">출석 적은 순</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -328,199 +402,305 @@ export function AttendanceTable({
         )}
       </div>
 
-      {/* ---------------- DUAL STICKY TABLE VIEW ---------------- */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-50/90 text-slate-600 font-bold border-b border-slate-200/80">
-                <th className="py-3.5 px-3 text-center border-r border-slate-200/60 w-10 text-slate-400">#</th>
-                
-                {/* 1. Left Sticky Column: Name */}
-                <th className="py-3.5 px-4 border-r border-slate-200/80 text-slate-900 sticky left-0 bg-slate-100 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] min-w-[90px]">
-                  이름
-                </th>
-
-                {/* 2. Middle Scrollable Month Columns */}
-                {selectedMonth === '전체' ? (
-                  displayMonths.map((m) => (
-                    <th key={m} className="py-3.5 px-4 border-r border-slate-200/60 min-w-[140px]">
-                      {formatMonthHeader(m)}
-                    </th>
-                  ))
-                ) : (
-                  <th className="py-3.5 px-4 border-r border-slate-200/60 min-w-[220px]">
-                    {formatMonthHeader(selectedMonth)} 출석 일자
+      {/* ---------------- VIEW MODE 1: DUAL STICKY TABLE VIEW ---------------- */}
+      {viewMode === 'table' ? (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50/90 text-slate-600 font-bold border-b border-slate-200/80">
+                  <th className="py-3 px-2 sm:py-3.5 sm:px-3 text-center border-r border-slate-200/60 w-8 sm:w-10 text-slate-400">#</th>
+                  
+                  {/* 1. Left Sticky Column: Name */}
+                  <th className="py-3 px-2.5 sm:py-3.5 sm:px-4 border-r border-slate-200/80 text-slate-900 sticky left-0 bg-slate-100 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)] min-w-[75px] sm:min-w-[90px]">
+                    이름
                   </th>
-                )}
 
-                {/* 3. Right Sticky Column: Total Count */}
-                <th className="py-3.5 px-4 border-r border-slate-200/80 text-center font-extrabold text-slate-900 w-20 sticky right-[125px] bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                  합계
-                </th>
+                  {/* 2. Middle Scrollable Month Columns */}
+                  {selectedMonth === '전체' ? (
+                    displayMonths.map((m) => (
+                      <th key={m} className="py-3 px-3 sm:py-3.5 sm:px-4 border-r border-slate-200/60 min-w-[110px] sm:min-w-[140px]">
+                        {formatMonthHeader(m)}
+                      </th>
+                    ))
+                  ) : (
+                    <th className="py-3 px-3 sm:py-3.5 sm:px-4 border-r border-slate-200/60 min-w-[180px] sm:min-w-[220px]">
+                      {formatMonthHeader(selectedMonth)} 출석 일자
+                    </th>
+                  )}
 
-                {/* 4. Right Sticky Column: Status */}
-                <th className="py-3.5 px-4 border-r border-slate-200/60 text-center min-w-[125px] sticky right-0 bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-                  달성 상태
-                </th>
+                  {/* 3. Right Sticky Column: Total Count */}
+                  <th className="py-3 px-2 sm:py-3.5 sm:px-4 border-r border-slate-200/80 text-center font-extrabold text-slate-900 w-14 sm:w-20 sticky right-[95px] sm:right-[125px] bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                    합계
+                  </th>
 
-                {/* Edit Column Header */}
-                {isEditMode && <th className="py-3.5 px-3 text-center w-16 text-slate-400">삭제</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {sortedMembers.map((member, index) => {
-                const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
-                const targetCount = member.targetCount || 4;
-                const isCompleted = totalCount >= targetCount;
+                  {/* 4. Right Sticky Column: Status */}
+                  <th className="py-3 px-2 sm:py-3.5 sm:px-4 border-r border-slate-200/60 text-center min-w-[95px] sm:min-w-[125px] sticky right-0 bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
+                    달성 상태
+                  </th>
 
-                return (
-                  <tr key={member.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="py-3 px-3 text-center text-slate-400 border-r border-slate-100 text-[11px]">
-                      {index + 1}
-                    </td>
-
-                    {/* Left Sticky Body Cell: Name */}
-                    <td className="py-3 px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
-                      {member.name}
-                    </td>
-
-                    {/* Middle Scrollable Month Cells */}
-                    {selectedMonth === '전체' ? (
-                      displayMonths.map((mKey) => {
-                        const daysValue = member.attendances[mKey] || '';
-                        const isEditing = editingCell?.memberId === member.id && editingCell?.month === mKey;
-
-                        return (
-                          <td
-                            key={mKey}
-                            onClick={() => isEditMode && !isEditing && handleCellClick(member.id, mKey, daysValue)}
-                            className={`py-3 px-4 border-r border-slate-100 transition text-slate-700 ${
-                              isEditMode ? 'cursor-pointer hover:bg-slate-100/80' : ''
-                            }`}
-                          >
-                            {isEditing ? (
-                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                  type="text"
-                                  value={cellValue}
-                                  onChange={(e) => setCellValue(e.target.value)}
-                                  placeholder="예: 4, 8, 15"
-                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs focus:border-slate-900 outline-none"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleCellSave();
-                                    if (e.key === 'Escape') setEditingCell(null);
-                                  }}
-                                />
-                                <button
-                                  onClick={handleCellSave}
-                                  className="px-2 py-1 bg-slate-900 text-white text-[11px] font-bold rounded"
-                                >
-                                  저장
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-between group/cell">
-                                {renderDaysPills(member, mKey, daysValue)}
-                                {isEditMode && (
-                                  <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition ml-1 shrink-0" />
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })
-                    ) : (
-                      <td
-                        onClick={() => isEditMode && handleCellClick(member.id, selectedMonth, member.attendances[selectedMonth] || '')}
-                        className={`py-3 px-4 border-r border-slate-100 transition text-slate-700 ${
-                          isEditMode ? 'cursor-pointer hover:bg-slate-100/80' : ''
-                        }`}
-                      >
-                        {editingCell?.memberId === member.id && editingCell?.month === selectedMonth ? (
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="text"
-                              value={cellValue}
-                              onChange={(e) => setCellValue(e.target.value)}
-                              placeholder="예: 4, 8, 15"
-                              className="w-full px-2 py-1 border border-slate-300 rounded text-xs focus:border-slate-900 outline-none"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleCellSave();
-                                if (e.key === 'Escape') setEditingCell(null);
-                              }}
-                            />
-                            <button
-                              onClick={handleCellSave}
-                              className="px-2 py-1 bg-slate-900 text-white text-[11px] font-bold rounded"
-                            >
-                              저장
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between group/cell">
-                            {renderDaysPills(member, selectedMonth, member.attendances[selectedMonth] || '')}
-                            {isEditMode && (
-                              <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition ml-1 shrink-0" />
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    )}
-
-                    {/* Right Sticky Body Cell: Total Count */}
-                    <td className="py-3 px-4 text-center font-extrabold text-slate-900 border-r border-slate-200/80 sticky right-[125px] bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] text-sm">
-                      {totalCount}
-                    </td>
-
-                    {/* Right Sticky Body Cell: Status */}
-                    <td className="py-3 px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${
-                          isCompleted
-                            ? 'bg-slate-900 text-white'
-                            : totalCount > 0
-                            ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                            : 'bg-slate-50 text-slate-400 border border-slate-200/60'
-                        }`}
-                      >
-                        {isCompleted ? `달성 · ${totalCount}회` : `미달 · ${totalCount}/${targetCount}회`}
-                      </span>
-                    </td>
-
-                    {/* Delete Action */}
-                    {isEditMode && (
-                      <td className="py-3 px-3 text-center border-r border-slate-100">
-                        <button
-                          onClick={() => {
-                            if (confirm(`${member.name} 회원을 삭제하시겠습니까?`)) {
-                              onDeleteMember(member.id);
-                            }
-                          }}
-                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition"
-                          title="삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-
-              {sortedMembers.length === 0 && (
-                <tr>
-                  <td colSpan={isEditMode ? 9 : 8} className="py-12 text-center text-slate-400">
-                    {searchTerm ? `'${searchTerm}' 이름 검색 결과가 없습니다.` : '해당 학기 크루원 데이터가 없습니다.'}
-                  </td>
+                  {/* Edit Column Header */}
+                  {isEditMode && <th className="py-3 px-2 text-center w-14 text-slate-400">삭제</th>}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sortedMembers.map((member, index) => {
+                  const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
+                  const targetCount = member.targetCount || 4;
+                  const isCompleted = totalCount >= targetCount;
+
+                  return (
+                    <tr key={member.id} className="hover:bg-slate-50/80 transition-colors group">
+                      <td className="py-2.5 px-2 sm:py-3 sm:px-3 text-center text-slate-400 border-r border-slate-100 text-[11px]">
+                        {index + 1}
+                      </td>
+
+                      {/* Left Sticky Body Cell: Name */}
+                      <td className="py-2.5 px-2.5 sm:py-3 sm:px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
+                        {member.name}
+                      </td>
+
+                      {/* Middle Scrollable Month Cells */}
+                      {selectedMonth === '전체' ? (
+                        displayMonths.map((mKey) => {
+                          const daysValue = member.attendances[mKey] || '';
+                          const isEditing = editingCell?.memberId === member.id && editingCell?.month === mKey;
+
+                          return (
+                            <td
+                              key={mKey}
+                              onClick={() => isEditMode && !isEditing && handleCellClick(member.id, mKey, daysValue)}
+                              className={`py-2.5 px-3 sm:py-3 sm:px-4 border-r border-slate-100 transition text-slate-700 ${
+                                isEditMode ? 'cursor-pointer hover:bg-slate-100/80' : ''
+                              }`}
+                            >
+                              {isEditing ? (
+                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="text"
+                                    value={cellValue}
+                                    onChange={(e) => setCellValue(e.target.value)}
+                                    placeholder="예: 4, 8, 15"
+                                    className="w-full px-2 py-1 border border-slate-300 rounded text-xs focus:border-slate-900 outline-none"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleCellSave();
+                                      if (e.key === 'Escape') setEditingCell(null);
+                                    }}
+                                  />
+                                  <button
+                                    onClick={handleCellSave}
+                                    className="px-2 py-1 bg-slate-900 text-white text-[11px] font-bold rounded"
+                                  >
+                                    저장
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-between group/cell">
+                                  {renderDaysPills(member, mKey, daysValue)}
+                                  {isEditMode && (
+                                    <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition ml-1 shrink-0" />
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })
+                      ) : (
+                        <td
+                          onClick={() => isEditMode && handleCellClick(member.id, selectedMonth, member.attendances[selectedMonth] || '')}
+                          className={`py-2.5 px-3 sm:py-3 sm:px-4 border-r border-slate-100 transition text-slate-700 ${
+                            isEditMode ? 'cursor-pointer hover:bg-slate-100/80' : ''
+                          }`}
+                        >
+                          {editingCell?.memberId === member.id && editingCell?.month === selectedMonth ? (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={cellValue}
+                                onChange={(e) => setCellValue(e.target.value)}
+                                placeholder="예: 4, 8, 15"
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-xs focus:border-slate-900 outline-none"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleCellSave();
+                                  if (e.key === 'Escape') setEditingCell(null);
+                                }}
+                              />
+                              <button
+                                onClick={handleCellSave}
+                                className="px-2 py-1 bg-slate-900 text-white text-[11px] font-bold rounded"
+                              >
+                                저장
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between group/cell">
+                              {renderDaysPills(member, selectedMonth, member.attendances[selectedMonth] || '')}
+                              {isEditMode && (
+                                <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover/cell:opacity-100 transition ml-1 shrink-0" />
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Right Sticky Body Cell: Total Count */}
+                      <td className="py-2.5 px-2 sm:py-3 sm:px-4 text-center font-extrabold text-slate-900 border-r border-slate-200/80 sticky right-[95px] sm:right-[125px] bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] text-xs sm:text-sm">
+                        {totalCount}
+                      </td>
+
+                      {/* Right Sticky Body Cell: Status */}
+                      <td className="py-2.5 px-2 sm:py-3 sm:px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
+                        <span
+                          className={`inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-semibold whitespace-nowrap ${
+                            isCompleted
+                              ? 'bg-slate-900 text-white'
+                              : totalCount > 0
+                              ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                              : 'bg-slate-50 text-slate-400 border border-slate-200/60'
+                          }`}
+                        >
+                          {isCompleted ? `달성 · ${totalCount}회` : `미달 · ${totalCount}/${targetCount}회`}
+                        </span>
+                      </td>
+
+                      {/* Delete Action */}
+                      {isEditMode && (
+                        <td className="py-2.5 px-2 sm:py-3 sm:px-3 text-center border-r border-slate-100">
+                          <button
+                            onClick={() => {
+                              if (confirm(`${member.name} 회원을 삭제하시겠습니까?`)) {
+                                onDeleteMember(member.id);
+                              }
+                            }}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+
+                {sortedMembers.length === 0 && (
+                  <tr>
+                    <td colSpan={isEditMode ? 9 : 8} className="py-12 text-center text-slate-400">
+                      {searchTerm ? `'${searchTerm}' 이름 검색 결과가 없습니다.` : '해당 학기 크루원 데이터가 없습니다.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ---------------- VIEW MODE 2: MOBILE CARD VIEW (ZERO HORIZONTAL SCROLL) ---------------- */
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {sortedMembers.map((member, index) => {
+              const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
+              const targetCount = member.targetCount || 4;
+              const isCompleted = totalCount >= targetCount;
+              const progressPercent = Math.min(Math.round((totalCount / targetCount) * 100), 100);
+
+              return (
+                <div
+                  key={member.id}
+                  className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3 relative hover:border-slate-300 transition"
+                >
+                  {/* Card Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg font-mono">
+                        #{index + 1}
+                      </span>
+                      <h3 className="font-extrabold text-slate-900 text-base">{member.name}</h3>
+                    </div>
+
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                        isCompleted
+                          ? 'bg-slate-900 text-white'
+                          : totalCount > 0
+                          ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                          : 'bg-slate-50 text-slate-400 border border-slate-200/60'
+                      }`}
+                    >
+                      {isCompleted ? `달성 · ${totalCount}회` : `미달 · ${totalCount}/${targetCount}회`}
+                    </span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div>
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+                      <span>출석률</span>
+                      <span>{totalCount} / {targetCount}회 ({progressPercent}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          isCompleted ? 'bg-slate-900' : 'bg-slate-400'
+                        }`}
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Attendance Days by Month */}
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    {displayMonths.map((mKey) => {
+                      const daysValue = member.attendances[mKey] || '';
+                      return (
+                        <div key={mKey} className="flex items-start justify-between text-xs gap-2">
+                          <span className="font-bold text-slate-500 shrink-0 w-8 pt-0.5">
+                            {formatMonthHeader(mKey)}
+                          </span>
+                          <div className="flex-1 flex justify-end">
+                            {renderDaysPills(member, mKey, daysValue)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Edit Actions */}
+                  {isEditMode && (
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => onEditMember(member)}
+                        className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center gap-1"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        수정
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`${member.name} 회원을 삭제하시겠습니까?`)) {
+                            onDeleteMember(member.id);
+                          }
+                        }}
+                        className="px-2.5 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {sortedMembers.length === 0 && (
+              <div className="col-span-full py-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/80">
+                {searchTerm ? `'${searchTerm}' 이름 검색 결과가 없습니다.` : '해당 학기 크루원 데이터가 없습니다.'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Past Semesters Historical Data Accordion */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
