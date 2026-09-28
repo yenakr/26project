@@ -160,9 +160,19 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
     if (leftMatch) {
       const rawName = leftMatch[1].split(',').pop()?.trim() || leftMatch[1].trim();
       const cleanName = cleanMemberName(rawName);
-      if (cleanName && memberMap.has(cleanName)) {
-        const existing = memberMap.get(cleanName)!;
-        existing.leaveDate = isoDateStr;
+      if (cleanName) {
+        if (!memberMap.has(cleanName)) {
+          memberMap.set(cleanName, {
+            id: String(Date.now() + Math.random()),
+            name: cleanName,
+            attendances: {},
+            sources: {},
+            leaveDate: isoDateStr
+          });
+        } else {
+          const existing = memberMap.get(cleanName)!;
+          existing.leaveDate = isoDateStr;
+        }
       }
     }
 
@@ -447,7 +457,7 @@ export function cleanMemberName(raw: string): string {
     .replace(/[\(\[\{].*?[\)\]\}]/g, '')
     .trim();
 
-  if (isNonMemberName(cleaned) || isMojibakeName(cleaned)) {
+  if (/^\d+년?$/i.test(cleaned) || /^\d+$/.test(cleaned) || isNonMemberName(cleaned) || isMojibakeName(cleaned)) {
     return '';
   }
 
@@ -463,7 +473,9 @@ export function cleanMemberName(raw: string): string {
 }
 
 export function isNonMemberName(name: string): boolean {
-  return /^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(name.trim());
+  const trimmed = name.trim();
+  if (/^\d+년?$/i.test(trimmed) || /^\d+$/.test(trimmed)) return true;
+  return /^(멘션|멘션하기|답장|사진|동영상|이모티콘|파일|보이스톡|페이스톡|공지|투표|카카오톡|운영진|관리자|알림|알림톡)$/i.test(trimmed);
 }
 
 export function isMojibakeName(name: string): boolean {
