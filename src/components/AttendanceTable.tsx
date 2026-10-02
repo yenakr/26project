@@ -22,7 +22,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { Member, SortOption, SemesterInfo, DEFAULT_SEMESTERS } from '../types/attendance';
-import { calculateTotalForMonths, sortMembers, getEffectiveMemberType } from '../utils/helpers';
+import { calculateTotalForMonths, sortMembers, getEffectiveMemberType, getStatusBadgeStyle } from '../utils/helpers';
 import { exportToExcel } from '../utils/exportExcel';
 import { exportToPdf } from '../utils/exportPdf';
 
@@ -598,13 +598,11 @@ export function AttendanceTable({
                       {/* Right Sticky Body Cell: Total Status */}
                       <td className="py-2.5 px-2 sm:py-3 sm:px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                         <span
-                          className={`inline-block px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-bold whitespace-nowrap ${
-                            isCompleted
-                              ? 'bg-slate-900 text-white'
-                              : totalCount > 0
-                              ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                              : 'bg-slate-50 text-slate-400 border border-slate-200/60'
-                          }`}
+                          className={`inline-block px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] whitespace-nowrap ${getStatusBadgeStyle(
+                            typeName,
+                            isCompleted,
+                            totalCount
+                          )}`}
                         >
                           {isCompleted ? `${totalCount}회` : `${totalCount}/${targetCount}회`}
                         </span>
@@ -685,13 +683,11 @@ export function AttendanceTable({
                     </div>
 
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
-                        isCompleted
-                          ? 'bg-slate-900 text-white'
-                          : totalCount > 0
-                          ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                          : 'bg-slate-50 text-slate-400 border border-slate-200/60'
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusBadgeStyle(
+                        typeName,
+                        isCompleted,
+                        totalCount
+                      )}`}
                     >
                       {isCompleted ? `${totalCount}회` : `${totalCount}/${targetCount}회`}
                     </span>

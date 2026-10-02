@@ -62,7 +62,9 @@ export function MemberModal({
     const targetMember = allMembers.find((m) => m.id === mergeTargetId);
     if (!targetMember) return;
 
-    if (confirm(`'${initialMember.name}' 회원의 모든 출석 기록을 '${targetMember.name}' 회원의 기록으로 합치고 '${initialMember.name}' 회원을 삭제하시겠습니까?`)) {
+    const confirmMessage = `‘${initialMember.name}’의 출석 기록을 ‘${targetMember.name}’에게 병합할까요?\n\n병합 후 ‘${initialMember.name}’ 회원은 삭제됩니다.`;
+
+    if (confirm(confirmMessage)) {
       onMergeMembers(initialMember.id, mergeTargetId);
       onClose();
     }
@@ -174,29 +176,30 @@ export function MemberModal({
             </div>
           </div>
 
-          {/* Merge Member Feature */}
+          {/* Member Merge Feature */}
           {initialMember && allMembers && onMergeMembers && allMembers.length > 1 && (
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
               <label className="block font-bold text-slate-700 flex items-center gap-1">
                 <GitMerge className="w-3.5 h-3.5 text-slate-600" />
-                <span>이름 합치기 (다른 회원과 통합)</span>
+                <span>회원 기록 병합</span>
               </label>
-              <p className="text-[11px] text-slate-500 leading-snug">
-                '{initialMember.name}' 회원의 모든 출석 기록을 다른 회원에게 합치고 삭제합니다.
-              </p>
+              <div className="text-[11px] text-slate-500 leading-snug space-y-0.5">
+                <p>‘{initialMember.name}’의 출석 기록을 선택한 회원에게 합칩니다.</p>
+                <p className="text-slate-500">병합 후 ‘{initialMember.name}’ 회원은 삭제됩니다.</p>
+              </div>
               <div className="flex items-center gap-2 pt-1">
                 <select
                   value={mergeTargetId}
                   onChange={(e) => setMergeTargetId(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs outline-none bg-white font-semibold text-slate-800"
                 >
-                  <option value="">-- 병합할 대상 회원 선택 --</option>
+                  <option value="">병합할 회원 선택 ▾</option>
                   {allMembers
                     .filter((m) => m.id !== initialMember.id)
                     .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
                     .map((m) => (
                       <option key={m.id} value={m.id}>
-                        '{m.name}' 회원의 기록으로 합치기
+                        {m.name}
                       </option>
                     ))}
                 </select>
@@ -210,7 +213,7 @@ export function MemberModal({
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
-                  합치기
+                  기록 병합
                 </button>
               </div>
             </div>
