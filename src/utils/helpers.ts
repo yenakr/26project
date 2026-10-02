@@ -15,25 +15,36 @@ export function getEffectiveMemberType(member: Member, activeSemester?: Semester
 }
 
 export function getStatusBadgeStyle(typeName: MemberRoleType, isCompleted: boolean, totalCount: number): string {
-  // 1. 미달성 시: 회원 등급 상관없이 기존 회색톤으로 통일
-  if (!isCompleted) {
-    return totalCount > 0
-      ? 'bg-slate-100 text-slate-700 border border-slate-200/80 font-bold'
-      : 'bg-slate-50 text-slate-400 border border-slate-200/60 font-medium';
+  if (typeName === '신입회원') {
+    return isCompleted
+      ? 'bg-emerald-600 text-white font-extrabold shadow-xs'
+      : totalCount > 0
+      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300/80 font-bold'
+      : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-medium';
   }
 
-  // 2. 목표 달성 시: 회원 등급별 대표 색상 적용
-  switch (typeName) {
-    case '신입회원':
-      return 'bg-emerald-600 text-white font-extrabold shadow-xs';
-    case '정회원':
-      return 'bg-blue-600 text-white font-extrabold shadow-xs';
-    case 'OB회원':
-      return 'bg-pink-600 text-white font-extrabold shadow-xs';
-    case '미지정':
-    default:
-      return 'bg-slate-900 text-white font-extrabold shadow-xs';
+  if (typeName === '정회원') {
+    return isCompleted
+      ? 'bg-blue-600 text-white font-extrabold shadow-xs'
+      : totalCount > 0
+      ? 'bg-blue-100 text-blue-900 border border-blue-300/80 font-bold'
+      : 'bg-blue-50 text-blue-700 border border-blue-200/60 font-medium';
   }
+
+  if (typeName === 'OB회원') {
+    return isCompleted
+      ? 'bg-pink-600 text-white font-extrabold shadow-xs'
+      : totalCount > 0
+      ? 'bg-pink-100 text-pink-900 border border-pink-300/80 font-bold'
+      : 'bg-pink-50 text-pink-700 border border-pink-200/60 font-medium';
+  }
+
+  // 미지정 (기존 그 슬레이트 회색 박스 유지)
+  return isCompleted
+    ? 'bg-slate-900 text-white font-extrabold shadow-xs'
+    : totalCount > 0
+    ? 'bg-slate-100 text-slate-700 border border-slate-200 font-bold'
+    : 'bg-slate-50 text-slate-400 border border-slate-200/60 font-medium';
 }
 
 export function parseDaysCount(daysStr: string | undefined): number {

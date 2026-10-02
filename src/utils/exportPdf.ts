@@ -139,17 +139,29 @@ export async function exportToPdf(
               })
               .join('');
 
-            const statusStyle = !isCompleted
-              ? total > 0
-                ? 'background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
-                : 'background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; display: inline-block;'
+            const statusStyle = isCompleted
+              ? typeName === '신입회원'
+                ? 'background: #059669; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+                : typeName === '정회원'
+                ? 'background: #2563eb; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+                : typeName === 'OB회원'
+                ? 'background: #db2777; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+                : 'background: #0f172a; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+              : total > 0
+              ? typeName === '신입회원'
+                ? 'background: #dcfce7; color: #065f46; border: 1px solid #86efac; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+                : typeName === '정회원'
+                ? 'background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+                : typeName === 'OB회원'
+                ? 'background: #fce7f3; color: #9d174d; border: 1px solid #f472b6; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+                : 'background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
               : typeName === '신입회원'
-              ? 'background: #059669; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+              ? 'background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; display: inline-block;'
               : typeName === '정회원'
-              ? 'background: #2563eb; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
+              ? 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; display: inline-block;'
               : typeName === 'OB회원'
-              ? 'background: #db2777; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;'
-              : 'background: #0f172a; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;';
+              ? 'background: #fdf2f8; color: #be185d; border: 1px solid #fbcfe8; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; display: inline-block;'
+              : 'background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; display: inline-block;';
 
             const statusText = `${total}/${target}회`;
 

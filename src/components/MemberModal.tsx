@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, UserCheck, GitMerge } from 'lucide-react';
 import { Member, MemberRoleType } from '../types/attendance';
+import { getEffectiveMemberType } from '../utils/helpers';
 
 interface MemberModalProps {
   initialMember?: Member | null;
@@ -17,12 +18,11 @@ export function MemberModal({
   onMergeMembers,
   onClose
 }: MemberModalProps) {
+  const initialType = initialMember ? getEffectiveMemberType(initialMember) : '미지정';
   const [name, setName] = useState(initialMember?.name || '');
-  const [memberType, setMemberType] = useState<MemberRoleType>(
-    initialMember?.memberType || '미지정'
-  );
+  const [memberType, setMemberType] = useState<MemberRoleType>(initialType);
   const [targetCount, setTargetCount] = useState(
-    initialMember?.targetCount || (initialMember?.memberType === 'OB회원' ? 2 : 4)
+    initialMember?.targetCount || (initialType === 'OB회원' ? 2 : 4)
   );
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
