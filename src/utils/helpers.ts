@@ -1,4 +1,4 @@
-import { Member, MemberRoleType, SemesterInfo, SortOption } from '../types/attendance';
+import { Member, MemberRoleType, SemesterInfo, SortOption, AttendanceSource } from '../types/attendance';
 
 export function getEffectiveMemberType(member: Member, activeSemester?: SemesterInfo): MemberRoleType {
   if (member.memberType && member.memberType !== '미지정') {
@@ -75,4 +75,36 @@ export function sortMembers(members: Member[], sortOption: SortOption, activeMon
     default:
       return copy;
   }
+}
+
+export function getAttendanceSources(member: Member, monthKey: string, day: string): AttendanceSource[] {
+  if (!member || !member.sources) return [];
+
+  const targetDayNum = parseInt(day, 10);
+  const mParts = monthKey.split('.');
+  const yr = mParts[0];
+  const moNum = parseInt(mParts[1] || '0', 10);
+
+  // 1. Direct exact key match
+  const exactKey = `${monthKey}.${day}`;
+  if (member.sources[exactKey] && member.sources[exactKey].length > 0) {
+    return member.sources[exactKey];
+  }
+
+  // 2. Normalized numeric match
+  for (const [key, srcList] of Object.entries(member.sources)) {
+    if (!srcList || srcList.length === 0) continue;
+    const kParts = key.split('.');
+    if (kParts.length === 3) {
+      const kYr = kParts[0];
+      const kMoNum = parseInt(kParts[1], 10);
+      const kDayNum = parseInt(kParts[2], 10);
+
+      if (kYr === yr && kMoNum === moNum && kDayNum === targetDayNum) {
+        return srcList;
+      }
+    }
+  }
+
+  return [];
 }

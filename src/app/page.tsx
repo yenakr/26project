@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, HelpCircle, Loader2 } from 'lucide-react';
 import { Member, ParseResult, UnmatchedTag, ReviewItem, AttendanceSource } from '../types/attendance';
 import { parseKakaoTalkLog, parseRosterText, decodeFileBuffer, isNonMemberName, isMojibakeName, cleanMemberName } from '../utils/parser';
+import { getAttendanceSources } from '../utils/helpers';
 import { StatsOverview } from '../components/StatsOverview';
 import { AttendanceTable } from '../components/AttendanceTable';
 import { FileUploaderModal } from '../components/FileUploaderModal';
@@ -267,17 +268,28 @@ export default function Home() {
   };
 
   const handleDeleteAttendanceDay = (memberName: string, monthKey: string, day: string) => {
+    const targetDayNum = parseInt(day, 10);
+    const mParts = monthKey.split('.');
+    const yr = mParts[0];
+    const moNum = parseInt(mParts[1] || '0', 10);
+
     const updatedMembers = members.map((m) => {
       if (m.name === memberName) {
         const existingDays = (m.attendances[monthKey] || '')
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
-        const filteredDays = existingDays.filter((d) => d !== day);
+        const filteredDays = existingDays.filter((d) => parseInt(d, 10) !== targetDayNum);
 
-        const dayKey = `${monthKey}.${day}`;
         const nextSources = m.sources ? { ...m.sources } : {};
-        delete nextSources[dayKey];
+        Object.keys(nextSources).forEach((k) => {
+          const kParts = k.split('.');
+          if (kParts.length === 3) {
+            if (kParts[0] === yr && parseInt(kParts[1], 10) === moNum && parseInt(kParts[2], 10) === targetDayNum) {
+              delete nextSources[k];
+            }
+          }
+        });
 
         return {
           ...m,
@@ -510,11 +522,11 @@ export default function Home() {
           memberName={selectedDateSource.member.name}
           monthKey={selectedDateSource.monthKey}
           day={selectedDateSource.day}
-          sources={
-            selectedDateSource.member.sources?.[
-              `${selectedDateSource.monthKey}.${selectedDateSource.day}`
-            ] || []
-          }
+          sources={getAttendanceSources(
+            selectedDateSource.member,
+            selectedDateSource.monthKey,
+            selectedDateSource.day
+          )}
           isEditMode={true}
           onDeleteAttendanceDay={handleDeleteAttendanceDay}
           onClose={() => setSelectedDateSource(null)}
