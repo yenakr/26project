@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, MessageSquare, Trash2, Calendar, User, Info } from 'lucide-react';
 import { AttendanceSource } from '../types/attendance';
+import { HighlightedMessage } from './HighlightedMessage';
 
 interface AttendanceSourceModalProps {
   memberName: string;
@@ -73,7 +74,7 @@ export function AttendanceSourceModal({
 
                 {/* Original Message Text */}
                 <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs text-slate-900 font-sans leading-relaxed whitespace-pre-wrap">
-                  {src.message}
+                  <HighlightedMessage text={src.message} />
                 </div>
               </div>
             ))

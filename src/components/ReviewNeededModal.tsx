@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, HelpCircle, Check, Trash2, CheckSquare, Square } from 'lucide-react';
 import { ReviewItem, Member } from '../types/attendance';
+import { HighlightedMessage } from './HighlightedMessage';
 
 interface ReviewNeededModalProps {
   reviewItems: ReviewItem[];
@@ -103,7 +104,7 @@ export function ReviewNeededModal({
 
                 {/* Original Message Box */}
                 <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs text-slate-800 font-sans leading-relaxed whitespace-pre-wrap">
-                  {item.fullMessage}
+                  <HighlightedMessage text={item.fullMessage} />
                 </div>
 
                 {/* Tagged Candidate Checkboxes */}

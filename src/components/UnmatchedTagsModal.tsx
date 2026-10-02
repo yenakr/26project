@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, AlertCircle, Check, Trash2 } from 'lucide-react';
 import { UnmatchedTag, Member } from '../types/attendance';
+import { HighlightedMessage } from './HighlightedMessage';
 
 interface UnmatchedTagsModalProps {
   unmatchedTags: UnmatchedTag[];
@@ -51,7 +52,7 @@ export function UnmatchedTagsModal({
 
               {/* Full Original Message Line Text */}
               <div className="text-xs text-slate-800 font-sans bg-white p-3 rounded-xl border border-slate-200/80 whitespace-pre-wrap leading-relaxed">
-                {tag.lineText}
+                <HighlightedMessage text={tag.lineText} />
               </div>
 
               {/* Action Buttons: Confirm vs Discard */}
