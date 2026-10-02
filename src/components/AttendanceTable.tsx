@@ -604,7 +604,7 @@ export function AttendanceTable({
                             totalCount
                           )}`}
                         >
-                          {isCompleted ? `${totalCount}회` : `${totalCount}/${targetCount}회`}
+                          {`${totalCount}/${targetCount}회`}
                         </span>
                       </td>
 
@@ -689,7 +689,7 @@ export function AttendanceTable({
                         totalCount
                       )}`}
                     >
-                      {isCompleted ? `${totalCount}회` : `${totalCount}/${targetCount}회`}
+                      {`${totalCount}/${targetCount}회`}
                     </span>
                   </div>
 
