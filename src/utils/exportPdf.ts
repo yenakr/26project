@@ -103,8 +103,7 @@ export async function exportToPdf(
                 )} 출석일</th>`
             )
             .join('')}
-          <th style="padding: 10px 10px; border: 1px solid #cbd5e1; text-align: center; width: 60px;">합계</th>
-          <th style="padding: 10px 12px; border: 1px solid #cbd5e1; text-align: center; width: 110px;">달성 상태</th>
+          <th style="padding: 10px 12px; border: 1px solid #cbd5e1; text-align: center; width: 110px;">합계</th>
         </tr>
       </thead>
       <tbody>
@@ -152,7 +151,6 @@ export async function exportToPdf(
                   m.name
                 }</td>
                 ${monthTdHtml}
-                <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center; font-weight: 800; color: #0f172a; font-size: 13px;">${total}</td>
                 <td style="padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
                   <span style="${statusStyle}">${statusText}</span>
                 </td>

@@ -445,14 +445,9 @@ export function AttendanceTable({
                     </th>
                   )}
 
-                  {/* 3. Right Sticky Column: Total Count */}
-                  <th className="py-3 px-2 sm:py-3.5 sm:px-4 border-r border-slate-200/80 text-center font-extrabold text-slate-900 w-14 sm:w-20 sticky right-[95px] sm:right-[125px] bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                    합계
-                  </th>
-
-                  {/* 4. Right Sticky Column: Status */}
+                  {/* Right Sticky Column: Total / Status */}
                   <th className="py-3 px-2 sm:py-3.5 sm:px-4 border-r border-slate-200/60 text-center min-w-[95px] sm:min-w-[125px] sticky right-0 bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
-                    달성 상태
+                    합계
                   </th>
 
                   {/* Edit Column Header */}
@@ -561,12 +556,7 @@ export function AttendanceTable({
                         </td>
                       )}
 
-                      {/* Right Sticky Body Cell: Total Count */}
-                      <td className="py-2.5 px-2 sm:py-3 sm:px-4 text-center font-extrabold text-slate-900 border-r border-slate-200/80 sticky right-[95px] sm:right-[125px] bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)] text-xs sm:text-sm">
-                        {totalCount}
-                      </td>
-
-                      {/* Right Sticky Body Cell: Status */}
+                      {/* Right Sticky Body Cell: Total Status */}
                       <td className="py-2.5 px-2 sm:py-3 sm:px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                         <span
                           className={`inline-block px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-bold whitespace-nowrap ${
