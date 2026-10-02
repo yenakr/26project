@@ -11,7 +11,7 @@ interface MemberModalProps {
 export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps) {
   const [name, setName] = useState(initialMember?.name || '');
   const [memberType, setMemberType] = useState<MemberRoleType>(
-    initialMember?.memberType || '정회원'
+    initialMember?.memberType || '미지정'
   );
   const [targetCount, setTargetCount] = useState(
     initialMember?.targetCount || (initialMember?.memberType === 'OB회원' ? 2 : 4)
@@ -77,41 +77,53 @@ export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps
           {/* Member Type Selector */}
           <div>
             <label className="block font-semibold text-slate-700 mb-1.5">회원 구분</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
-                onClick={() => handleMemberTypeChange('신입회원')}
-                className={`py-2 px-2.5 rounded-xl border text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  memberType === '신입회원'
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-400 ring-2 ring-emerald-400/20'
+                onClick={() => handleMemberTypeChange('미지정')}
+                className={`py-2 px-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  memberType === '미지정' || !memberType
+                    ? 'bg-slate-100 text-slate-800 border-slate-400 ring-2 ring-slate-400/20 font-extrabold'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0" />
+                <span>미지정</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMemberTypeChange('신입회원')}
+                className={`py-2 px-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  memberType === '신입회원'
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-400 ring-2 ring-emerald-400/20 font-extrabold'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
                 <span>신입회원</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleMemberTypeChange('정회원')}
-                className={`py-2 px-2.5 rounded-xl border text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2 px-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   memberType === '정회원'
-                    ? 'bg-blue-100 text-blue-800 border-blue-400 ring-2 ring-blue-400/20'
+                    ? 'bg-blue-100 text-blue-800 border-blue-400 ring-2 ring-blue-400/20 font-extrabold'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
                 <span>정회원</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleMemberTypeChange('OB회원')}
-                className={`py-2 px-2.5 rounded-xl border text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2 px-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   memberType === 'OB회원'
-                    ? 'bg-pink-100 text-pink-800 border-pink-400 ring-2 ring-pink-400/20'
+                    ? 'bg-pink-100 text-pink-800 border-pink-400 ring-2 ring-pink-400/20 font-extrabold'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <span className="w-2 h-2 rounded-full bg-pink-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-pink-500 shrink-0" />
                 <span>OB회원</span>
               </button>
             </div>

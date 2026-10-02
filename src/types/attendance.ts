@@ -10,7 +10,7 @@ export interface AttendanceSource {
   decisionType: 'auto' | 'review' | 'manual';
 }
 
-export type MemberRoleType = '신입회원' | '정회원' | 'OB회원';
+export type MemberRoleType = '미지정' | '신입회원' | '정회원' | 'OB회원';
 
 export interface Member {
   id: string;
