@@ -19,7 +19,7 @@ export function HighlightedMessage({ text, className = '' }: HighlightedMessageP
           return (
             <span
               key={index}
-              className="text-blue-600 font-bold bg-blue-50/90 px-1.5 py-0.5 rounded-md border border-blue-100 inline-inline mx-0.5 my-0.5 text-[11px] sm:text-xs shadow-2xs"
+              className="text-blue-600 font-bold bg-blue-50/90 px-1.5 py-0.5 rounded-md border border-blue-100 inline-block whitespace-nowrap mx-0.5 my-0.5 text-[11px] sm:text-xs shadow-2xs"
             >
               {part}
             </span>
