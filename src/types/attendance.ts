@@ -10,11 +10,14 @@ export interface AttendanceSource {
   decisionType: 'auto' | 'review' | 'manual';
 }
 
+export type MemberRoleType = '신입회원' | '정회원' | 'OB회원';
+
 export interface Member {
   id: string;
   name: string;
   attendances: AttendanceRecord;
   sources?: Record<string, AttendanceSource[]>; // Key e.g., '26.9.18'
+  memberType?: MemberRoleType;
   targetCount?: number;
   joinDate?: string; // YYYY-MM-DD
   leaveDate?: string; // YYYY-MM-DD

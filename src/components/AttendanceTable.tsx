@@ -457,7 +457,8 @@ export function AttendanceTable({
               <tbody className="divide-y divide-slate-100">
                 {sortedMembers.map((member, index) => {
                   const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
-                  const targetCount = member.targetCount || 4;
+                  const typeName = member.memberType || '정회원';
+                  const targetCount = member.targetCount || (typeName === 'OB회원' ? 2 : 4);
                   const isCompleted = totalCount >= targetCount;
 
                   return (
@@ -466,9 +467,26 @@ export function AttendanceTable({
                         {index + 1}
                       </td>
 
-                      {/* Left Sticky Body Cell: Name */}
-                      <td className="py-2.5 px-2.5 sm:py-3 sm:px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap">
-                        {member.name}
+                      {/* Left Sticky Body Cell: Name & Member Type Badge */}
+                      <td
+                        onClick={() => onEditMember(member)}
+                        className="py-2.5 px-2.5 sm:py-3 sm:px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap cursor-pointer group/name"
+                        title="클릭하여 회원 구분 및 정보 수정"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="group-hover/name:underline">{member.name}</span>
+                          <span
+                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${
+                              typeName === '신입회원'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : typeName === 'OB회원'
+                                ? 'bg-pink-100 text-pink-800 border-pink-300'
+                                : 'bg-blue-100 text-blue-800 border-blue-300'
+                            }`}
+                          >
+                            {typeName}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Middle Scrollable Month Cells */}
@@ -608,7 +626,8 @@ export function AttendanceTable({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {sortedMembers.map((member, index) => {
               const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
-              const targetCount = member.targetCount || 4;
+              const typeName = member.memberType || '정회원';
+              const targetCount = member.targetCount || (typeName === 'OB회원' ? 2 : 4);
               const isCompleted = totalCount >= targetCount;
               const sessionAttendanceRate =
                 totalCrewEventsCount > 0 ? Math.round((totalCount / totalCrewEventsCount) * 100) : 0;
@@ -621,11 +640,26 @@ export function AttendanceTable({
                 >
                   {/* Card Header */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div
+                      onClick={() => onEditMember(member)}
+                      className="flex items-center gap-1.5 cursor-pointer group/name"
+                      title="클릭하여 회원 구분 및 정보 수정"
+                    >
                       <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg font-mono">
                         #{index + 1}
                       </span>
-                      <h3 className="font-extrabold text-slate-900 text-base">{member.name}</h3>
+                      <h3 className="font-extrabold text-slate-900 text-base group-hover/name:underline">{member.name}</h3>
+                      <span
+                        className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border transition ${
+                          typeName === '신입회원'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            : typeName === 'OB회원'
+                            ? 'bg-pink-100 text-pink-800 border-pink-300'
+                            : 'bg-blue-100 text-blue-800 border-blue-300'
+                        }`}
+                      >
+                        {typeName}
+                      </span>
                     </div>
 
                     <span

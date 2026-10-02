@@ -110,8 +110,13 @@ export async function exportToPdf(
         ${members
           .map((m, idx) => {
             const total = calculateTotalForMonths(m.attendances, activeMonths);
-            const target = m.targetCount || 4;
+            const typeName = m.memberType || '정회원';
+            const target = m.targetCount || (typeName === 'OB회원' ? 2 : 4);
             const isCompleted = total >= target;
+
+            const badgeBg = typeName === '신입회원' ? '#d1fae5' : typeName === 'OB회원' ? '#fce7f3' : '#dbeafe';
+            const badgeColor = typeName === '신입회원' ? '#065f46' : typeName === 'OB회원' ? '#9d174d' : '#1e40af';
+            const badgeBorder = typeName === '신입회원' ? '#6ee7b7' : typeName === 'OB회원' ? '#f472b6' : '#93c5fd';
 
             const monthTdHtml = activeMonths
               .map((mKey) => {
@@ -147,9 +152,10 @@ export async function exportToPdf(
                 <td style="padding: 8px; border: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 11px;">${
                   idx + 1
                 }</td>
-                <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: 800; color: #0f172a;">${
-                  m.name
-                }</td>
+                <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: 800; color: #0f172a;">
+                  ${m.name}
+                  <span style="font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; border: 1px solid ${badgeBorder}; background: ${badgeBg}; color: ${badgeColor}; margin-left: 4px; display: inline-block;">${typeName}</span>
+                </td>
                 ${monthTdHtml}
                 <td style="padding: 8px 12px; border: 1px solid #e2e8f0; text-align: center;">
                   <span style="${statusStyle}">${statusText}</span>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, UserCheck } from 'lucide-react';
-import { Member } from '../types/attendance';
+import { Member, MemberRoleType } from '../types/attendance';
 
 interface MemberModalProps {
   initialMember?: Member | null;
@@ -10,11 +10,25 @@ interface MemberModalProps {
 
 export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps) {
   const [name, setName] = useState(initialMember?.name || '');
-  const [targetCount, setTargetCount] = useState(initialMember?.targetCount || 4);
+  const [memberType, setMemberType] = useState<MemberRoleType>(
+    initialMember?.memberType || '정회원'
+  );
+  const [targetCount, setTargetCount] = useState(
+    initialMember?.targetCount || (initialMember?.memberType === 'OB회원' ? 2 : 4)
+  );
   const [sep26, setSep26] = useState(initialMember?.attendances['26.9'] || '');
   const [oct26, setOct26] = useState(initialMember?.attendances['26.10'] || '');
   const [nov26, setNov26] = useState(initialMember?.attendances['26.11'] || '');
   const [dec26, setDec26] = useState(initialMember?.attendances['26.12'] || '');
+
+  const handleMemberTypeChange = (type: MemberRoleType) => {
+    setMemberType(type);
+    if (type === 'OB회원') {
+      setTargetCount(2);
+    } else {
+      setTargetCount(4);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +40,7 @@ export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps
     const updatedMember: Member = {
       id: initialMember?.id || String(Date.now()),
       name: name.trim(),
+      memberType,
       targetCount,
       attendances: {
         '26.9': sep26.trim(),
@@ -59,6 +74,49 @@ export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {/* Member Type Selector */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1.5">회원 구분</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => handleMemberTypeChange('신입회원')}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  memberType === '신입회원'
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-400 ring-2 ring-emerald-400/20'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>신입회원</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMemberTypeChange('정회원')}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  memberType === '정회원'
+                    ? 'bg-blue-100 text-blue-800 border-blue-400 ring-2 ring-blue-400/20'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span>정회원</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMemberTypeChange('OB회원')}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  memberType === 'OB회원'
+                    ? 'bg-pink-100 text-pink-800 border-pink-400 ring-2 ring-pink-400/20'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-pink-500" />
+                <span>OB회원</span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">이름</label>
