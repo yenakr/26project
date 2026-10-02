@@ -22,7 +22,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { Member, SortOption, SemesterInfo, DEFAULT_SEMESTERS } from '../types/attendance';
-import { calculateTotalForMonths, sortMembers } from '../utils/helpers';
+import { calculateTotalForMonths, sortMembers, getEffectiveMemberType } from '../utils/helpers';
 import { exportToExcel } from '../utils/exportExcel';
 import { exportToPdf } from '../utils/exportPdf';
 
@@ -424,13 +424,13 @@ export function AttendanceTable({
             <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" /> 미지정
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> 신입회원 (4회)
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> 신입회원
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 정회원 (4회)
+            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 정회원
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-pink-500 inline-block" /> OB회원 (2회)
+            <span className="w-2 h-2 rounded-full bg-pink-500 inline-block" /> OB회원
           </span>
           <span className="text-[10px] text-slate-400 font-normal ml-auto">
             (이름 클릭 시 구분 변경)
@@ -477,7 +477,7 @@ export function AttendanceTable({
               <tbody className="divide-y divide-slate-100">
                 {sortedMembers.map((member, index) => {
                   const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
-                  const typeName = member.memberType || '미지정';
+                  const typeName = getEffectiveMemberType(member, currentSemesterObj);
                   const targetCount = member.targetCount || (typeName === 'OB회원' ? 2 : 4);
                   const isCompleted = totalCount >= targetCount;
 
@@ -647,7 +647,7 @@ export function AttendanceTable({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {sortedMembers.map((member, index) => {
               const totalCount = calculateTotalForMonths(member.attendances, activeMonths);
-              const typeName = member.memberType || '미지정';
+              const typeName = getEffectiveMemberType(member, currentSemesterObj);
               const targetCount = member.targetCount || (typeName === 'OB회원' ? 2 : 4);
               const isCompleted = totalCount >= targetCount;
               const sessionAttendanceRate =

@@ -1,4 +1,18 @@
-import { Member, SortOption } from '../types/attendance';
+import { Member, MemberRoleType, SemesterInfo, SortOption } from '../types/attendance';
+
+export function getEffectiveMemberType(member: Member, activeSemester?: SemesterInfo): MemberRoleType {
+  if (member.memberType && member.memberType !== '미지정') {
+    return member.memberType;
+  }
+
+  if (member.joinDate && activeSemester?.startDate && activeSemester?.endDate) {
+    if (member.joinDate >= activeSemester.startDate && member.joinDate <= activeSemester.endDate) {
+      return '신입회원';
+    }
+  }
+
+  return member.memberType || '미지정';
+}
 
 export function parseDaysCount(daysStr: string | undefined): number {
   if (!daysStr || !daysStr.trim()) return 0;
