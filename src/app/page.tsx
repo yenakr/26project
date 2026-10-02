@@ -350,9 +350,12 @@ export default function Home() {
       {/* Minimal Header */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-            이런저런 출석 카운팅
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="로고" className="w-8 h-8 object-contain rounded-md" />
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+              이런저런 출석 카운팅
+            </h1>
+          </div>
 
           {members.length > 0 && (
             <button
