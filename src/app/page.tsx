@@ -521,7 +521,9 @@ export default function Home() {
       {editingMember && (
         <MemberModal
           initialMember={editingMember === 'new' ? null : editingMember}
+          allMembers={members}
           onSave={handleAddOrUpdateMember}
+          onMergeMembers={handleMergeMembers}
           onClose={() => setEditingMember(null)}
         />
       )}

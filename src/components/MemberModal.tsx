@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
-import { X, UserCheck } from 'lucide-react';
+import { X, UserCheck, GitMerge } from 'lucide-react';
 import { Member, MemberRoleType } from '../types/attendance';
 
 interface MemberModalProps {
   initialMember?: Member | null;
+  allMembers?: Member[];
   onSave: (member: Member) => void;
+  onMergeMembers?: (sourceId: string, targetId: string) => void;
   onClose: () => void;
 }
 
-export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps) {
+export function MemberModal({
+  initialMember,
+  allMembers,
+  onSave,
+  onMergeMembers,
+  onClose
+}: MemberModalProps) {
   const [name, setName] = useState(initialMember?.name || '');
   const [memberType, setMemberType] = useState<MemberRoleType>(
     initialMember?.memberType || '미지정'
@@ -16,10 +24,7 @@ export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps
   const [targetCount, setTargetCount] = useState(
     initialMember?.targetCount || (initialMember?.memberType === 'OB회원' ? 2 : 4)
   );
-  const [sep26, setSep26] = useState(initialMember?.attendances['26.9'] || '');
-  const [oct26, setOct26] = useState(initialMember?.attendances['26.10'] || '');
-  const [nov26, setNov26] = useState(initialMember?.attendances['26.11'] || '');
-  const [dec26, setDec26] = useState(initialMember?.attendances['26.12'] || '');
+  const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
   const handleMemberTypeChange = (type: MemberRoleType) => {
     setMemberType(type);
@@ -42,21 +47,36 @@ export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps
       name: name.trim(),
       memberType,
       targetCount,
-      attendances: {
-        '26.9': sep26.trim(),
-        '26.10': oct26.trim(),
-        '26.11': nov26.trim(),
-        '26.12': dec26.trim(),
-      },
+      attendances: initialMember ? { ...initialMember.attendances } : {},
+      sources: initialMember ? { ...initialMember.sources } : {},
+      joinDate: initialMember?.joinDate,
+      leaveDate: initialMember?.leaveDate,
     };
 
     onSave(updatedMember);
     onClose();
   };
 
+  const handleExecuteMerge = () => {
+    if (!initialMember || !mergeTargetId || !onMergeMembers || !allMembers) return;
+    const targetMember = allMembers.find((m) => m.id === mergeTargetId);
+    if (!targetMember) return;
+
+    if (confirm(`'${initialMember.name}' 회원의 모든 출석 기록을 '${targetMember.name}' 회원의 기록으로 합치고 '${initialMember.name}' 회원을 삭제하시겠습니까?`)) {
+      onMergeMembers(initialMember.id, mergeTargetId);
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200/80 relative">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200/80 relative cursor-default"
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg transition"
@@ -154,53 +174,47 @@ export function MemberModal({ initialMember, onSave, onClose }: MemberModalProps
             </div>
           </div>
 
-          <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/60 space-y-2">
-            <label className="block font-semibold text-slate-700">
-              월별 참석 일자 (쉼표 구분)
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <span className="text-[11px] text-slate-500">26.9 (9월)</span>
-                <input
-                  type="text"
-                  value={sep26}
-                  onChange={(e) => setSep26(e.target.value)}
-                  placeholder="예: 4, 8, 15"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-              <div>
-                <span className="text-[11px] text-slate-500">26.10 (10월)</span>
-                <input
-                  type="text"
-                  value={oct26}
-                  onChange={(e) => setOct26(e.target.value)}
-                  placeholder="예: 5, 12"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-              <div>
-                <span className="text-[11px] text-slate-500">26.11 (11월)</span>
-                <input
-                  type="text"
-                  value={nov26}
-                  onChange={(e) => setNov26(e.target.value)}
-                  placeholder="예: 3, 10"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-              <div>
-                <span className="text-[11px] text-slate-500">26.12 (12월)</span>
-                <input
-                  type="text"
-                  value={dec26}
-                  onChange={(e) => setDec26(e.target.value)}
-                  placeholder="예: 1, 8"
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs"
-                />
+          {/* Merge Member Feature */}
+          {initialMember && allMembers && onMergeMembers && allMembers.length > 1 && (
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+              <label className="block font-bold text-slate-700 flex items-center gap-1">
+                <GitMerge className="w-3.5 h-3.5 text-slate-600" />
+                <span>이름 합치기 (다른 회원과 통합)</span>
+              </label>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                '{initialMember.name}' 회원의 모든 출석 기록을 다른 회원에게 합치고 삭제합니다.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <select
+                  value={mergeTargetId}
+                  onChange={(e) => setMergeTargetId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs outline-none bg-white font-semibold text-slate-800"
+                >
+                  <option value="">-- 병합할 대상 회원 선택 --</option>
+                  {allMembers
+                    .filter((m) => m.id !== initialMember.id)
+                    .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        '{m.name}' 회원의 기록으로 합치기
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!mergeTargetId}
+                  onClick={handleExecuteMerge}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg shrink-0 transition ${
+                    mergeTargetId
+                      ? 'bg-slate-900 text-white hover:bg-slate-800 cursor-pointer shadow-2xs'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  합치기
+                </button>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="pt-2 flex justify-end gap-2">
             <button
