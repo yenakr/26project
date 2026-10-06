@@ -4,6 +4,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: '이런저런 출석 카운팅',
   description: '카카오톡 대화록 기반 출석 카운트 툴',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export const viewport: Viewport = {
