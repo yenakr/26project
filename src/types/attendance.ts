@@ -21,6 +21,7 @@ export interface Member {
   targetCount?: number;
   joinDate?: string; // YYYY-MM-DD
   leaveDate?: string; // YYYY-MM-DD
+  note?: string; // 비고 (메모)
 }
 
 export interface ReviewCandidate {

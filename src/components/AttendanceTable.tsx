@@ -70,6 +70,7 @@ export function AttendanceTable({
 
   const [editingCell, setEditingCell] = useState<{ memberId: string; month: string } | null>(null);
   const [cellValue, setCellValue] = useState('');
+  const [noteModalMember, setNoteModalMember] = useState<Member | null>(null);
 
   const currentSemesterObj = DEFAULT_SEMESTERS.find((s) => s.id === selectedSemesterId) || DEFAULT_SEMESTERS[0];
   const semesterMonthKeys = currentSemesterObj.months;
@@ -465,6 +466,11 @@ export function AttendanceTable({
                     </th>
                   )}
 
+                  {/* Column: Note / Memo */}
+                  <th className="py-3 px-2 sm:py-3.5 sm:px-3 border-r border-slate-200/60 text-center min-w-[70px] sm:min-w-[90px] text-slate-700 font-bold">
+                    비고
+                  </th>
+
                   {/* Right Sticky Column: Total / Status */}
                   <th className="py-3 px-2 sm:py-3.5 sm:px-4 border-r border-slate-200/60 text-center min-w-[95px] sm:min-w-[125px] sticky right-0 bg-slate-100 z-20 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                     합계
@@ -595,6 +601,32 @@ export function AttendanceTable({
                         </td>
                       )}
 
+                      {/* Body Cell: Note / Memo */}
+                      <td className="py-2.5 px-2 sm:py-3 sm:px-3 border-r border-slate-100 text-center text-slate-600 whitespace-nowrap">
+                        {member.note ? (
+                          <button
+                            type="button"
+                            onClick={() => setNoteModalMember(member)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-800 transition border border-slate-200/80 font-medium max-w-[80px] sm:max-w-[105px] cursor-pointer shadow-2xs group/note"
+                            title="클릭하여 비고 (메모) 원문 전체 보기"
+                          >
+                            <FileText className="w-3 h-3 text-slate-500 shrink-0 group-hover/note:text-slate-900" />
+                            <span className="truncate">{member.note}</span>
+                          </button>
+                        ) : isEditMode ? (
+                          <button
+                            type="button"
+                            onClick={() => onEditMember(member)}
+                            className="text-[10px] font-semibold text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100 transition cursor-pointer"
+                            title="비고 메모 추가"
+                          >
+                            + 메모
+                          </button>
+                        ) : (
+                          <span className="text-slate-300 font-light text-xs">-</span>
+                        )}
+                      </td>
+
                       {/* Right Sticky Body Cell: Total Status */}
                       <td className="py-2.5 px-2 sm:py-3 sm:px-4 border-r border-slate-100 text-center sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]">
                         <span
@@ -711,6 +743,22 @@ export function AttendanceTable({
                     </div>
                   </div>
 
+                  {/* Note / Memo in Card View */}
+                  {member.note && (
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs gap-2">
+                      <span className="font-bold text-slate-500 shrink-0">비고</span>
+                      <button
+                        type="button"
+                        onClick={() => setNoteModalMember(member)}
+                        className="text-xs font-medium text-slate-800 hover:text-slate-950 truncate max-w-[200px] bg-slate-50 px-2 py-0.5 rounded border border-slate-200/80 flex items-center gap-1 cursor-pointer"
+                        title="클릭하여 비고 (메모) 원문 전체 보기"
+                      >
+                        <FileText className="w-3 h-3 text-slate-500 shrink-0" />
+                        <span className="truncate">{member.note}</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Attendance Days by Month */}
                   <div className="pt-2 border-t border-slate-100 space-y-2">
                     {displayMonths.map((mKey) => {
@@ -808,6 +856,63 @@ export function AttendanceTable({
           </div>
         )}
       </div>
+
+      {/* Note Detail Modal */}
+      {noteModalMember && (
+        <div
+          onClick={() => setNoteModalMember(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 border border-slate-200/80 relative cursor-default space-y-4"
+          >
+            <button
+              onClick={() => setNoteModalMember(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-slate-900 text-white rounded-xl">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-slate-900">
+                  비고 (메모)
+                </h2>
+                <p className="text-xs text-slate-500 font-semibold">{noteModalMember.name} 회원</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-900 font-medium whitespace-pre-wrap leading-relaxed min-h-[70px]">
+              {noteModalMember.note || '등록된 메모가 없습니다.'}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  const target = noteModalMember;
+                  setNoteModalMember(null);
+                  onEditMember(target);
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl transition flex items-center gap-1.5"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>수정</span>
+              </button>
+
+              <button
+                onClick={() => setNoteModalMember(null)}
+                className="px-4 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,7 +36,7 @@ export async function exportToExcel(
   };
 
   const headerMonthLabels = months.map(formatMonthHeader);
-  const totalCols = 2 + months.length + 2; // #, 이름, months..., 합계, 달성 상태
+  const totalCols = 2 + months.length + 3; // #, 이름, months..., 비고, 합계, 달성 상태
 
   // 1. Title Block (Row 1-3)
   const titleRow = worksheet.getRow(1);
@@ -58,7 +58,7 @@ export async function exportToExcel(
   worksheet.getRow(3).height = 10; // Blank spacing row
 
   // 2. Table Header Row (Row 4)
-  const headers = ['#', '이름', ...headerMonthLabels, '합계', '달성 상태'];
+  const headers = ['#', '이름', ...headerMonthLabels, '비고', '합계', '달성 상태'];
   const headerRow = worksheet.getRow(4);
   headerRow.height = 26;
 
@@ -118,17 +118,23 @@ export async function exportToExcel(
       cellMonth.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
     });
 
+    // Cell: Note
+    const cellNote = row.getCell(3 + months.length);
+    cellNote.value = member.note || '-';
+    cellNote.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF475569' } };
+    cellNote.alignment = { vertical: 'middle', horizontal: 'center' };
+
     // Cell: Total Count
-    const cellTotal = row.getCell(3 + months.length);
+    const cellTotal = row.getCell(4 + months.length);
     cellTotal.value = totalCount;
     cellTotal.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FF0F172A' } };
     cellTotal.alignment = { vertical: 'middle', horizontal: 'center' };
     cellTotal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
 
     // Cell: Status
-    const cellStatus = row.getCell(4 + months.length);
+    const cellStatus = row.getCell(5 + months.length);
     if (isCompleted) {
-      cellStatus.value = `${totalCount}회`;
+      cellStatus.value = `${totalCount}/${targetCount}회`;
       cellStatus.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FF065F46' } };
       cellStatus.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
     } else {
@@ -141,7 +147,7 @@ export async function exportToExcel(
     // Apply Zebra striping and thin borders to row
     for (let c = 1; c <= totalCols; c++) {
       const cell = row.getCell(c);
-      if (c !== 3 + months.length && c !== 4 + months.length) {
+      if (c !== 4 + months.length && c !== 5 + months.length) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } };
       }
       cell.border = {
@@ -159,8 +165,9 @@ export async function exportToExcel(
   months.forEach((_, mIdx) => {
     worksheet.getColumn(3 + mIdx).width = 28; // 월별 참석일
   });
-  worksheet.getColumn(3 + months.length).width = 10; // 합계
-  worksheet.getColumn(4 + months.length).width = 18; // 달성 상태
+  worksheet.getColumn(3 + months.length).width = 20; // 비고
+  worksheet.getColumn(4 + months.length).width = 10; // 합계
+  worksheet.getColumn(5 + months.length).width = 18; // 달성 상태
 
   // 5. Freeze Panes (틀 고정: 상단 4행 및 좌측 2열 # / 이름 고정)
   worksheet.views = [

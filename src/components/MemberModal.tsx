@@ -24,6 +24,7 @@ export function MemberModal({
   const [targetCount, setTargetCount] = useState(
     initialMember?.targetCount || (initialType === 'OB회원' ? 2 : 4)
   );
+  const [note, setNote] = useState(initialMember?.note || '');
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
 
   const handleMemberTypeChange = (type: MemberRoleType) => {
@@ -47,6 +48,7 @@ export function MemberModal({
       name: name.trim(),
       memberType,
       targetCount,
+      note: note.trim() || undefined,
       attendances: initialMember ? { ...initialMember.attendances } : {},
       sources: initialMember ? { ...initialMember.sources } : {},
       joinDate: initialMember?.joinDate,
@@ -174,6 +176,18 @@ export function MemberModal({
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none transition"
               />
             </div>
+          </div>
+
+          {/* Note Input */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">비고 (메모)</label>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="예: 10월부터 휴회, 신규 입회 등 메모 작성"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none transition text-xs"
+            />
           </div>
 
           {/* Member Merge Feature */}
