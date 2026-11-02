@@ -72,9 +72,6 @@ export function PinAuthModal({ onSuccess }: PinAuthModalProps) {
           </button>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400">
-          🔒 100% 브라우저 메모리 보안 처리 (데이터 외부 미전송)
-        </div>
       </div>
     </div>
   );

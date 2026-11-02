@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -22,7 +22,14 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { Member, SortOption, SemesterInfo, DEFAULT_SEMESTERS } from '../types/attendance';
-import { calculateTotalForMonths, sortMembers, getEffectiveMemberType, getStatusBadgeStyle } from '../utils/helpers';
+import {
+  calculateTotalForMonths,
+  sortMembers,
+  getEffectiveMemberType,
+  getStatusBadgeStyle,
+  getAttendanceSources
+} from '../utils/helpers';
+import { HighlightedMessage } from './HighlightedMessage';
 import { exportToExcel } from '../utils/exportExcel';
 import { exportToPdf } from '../utils/exportPdf';
 
@@ -71,6 +78,22 @@ export function AttendanceTable({
   const [editingCell, setEditingCell] = useState<{ memberId: string; month: string } | null>(null);
   const [cellValue, setCellValue] = useState('');
   const [noteModalMember, setNoteModalMember] = useState<Member | null>(null);
+
+  // Hover preview for date pills (original message)
+  const [hoverPreview, setHoverPreview] = useState<{
+    member: Member;
+    monthKey: string;
+    day: string;
+    rect: { top: number; bottom: number; left: number; width: number };
+  } | null>(null);
+
+  // Fixed-position preview would drift on scroll, so just hide it
+  useEffect(() => {
+    if (!hoverPreview) return;
+    const hide = () => setHoverPreview(null);
+    window.addEventListener('scroll', hide, true);
+    return () => window.removeEventListener('scroll', hide, true);
+  }, [hoverPreview]);
 
   const currentSemesterObj = DEFAULT_SEMESTERS.find((s) => s.id === selectedSemesterId) || DEFAULT_SEMESTERS[0];
   const semesterMonthKeys = currentSemesterObj.months;
@@ -177,12 +200,23 @@ export function AttendanceTable({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              setHoverPreview(null);
               if (onSelectDatePill) {
                 onSelectDatePill(member, monthKey, dayStr);
               }
             }}
+            onMouseEnter={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setHoverPreview({
+                member,
+                monthKey,
+                day: dayStr,
+                rect: { top: r.top, bottom: r.bottom, left: r.left, width: r.width }
+              });
+            }}
+            onMouseLeave={() => setHoverPreview(null)}
+            onBlur={() => setHoverPreview(null)}
             className="px-2 py-0.5 rounded-md text-xs font-mono bg-slate-100 hover:bg-slate-200 text-slate-800 transition border border-slate-200/80 font-bold cursor-pointer shadow-2xs"
-            title="원문 메시지 확인"
           >
             {dayStr}
           </button>
@@ -283,7 +317,6 @@ export function AttendanceTable({
               onClick={handleExportPdf}
               disabled={isExportingPdf}
               className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-700 text-white text-xs font-semibold rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition"
-              title="화면 레이아웃 그대로 PDF 문서 다운로드"
             >
               {isExportingPdf ? (
                 <>
@@ -301,7 +334,6 @@ export function AttendanceTable({
             <button
               onClick={() => exportToExcel(sortedMembers, activeMonths)}
               className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-center gap-1.5 transition"
-              title="엑셀 스프레드시트 다운로드"
             >
               <Download className="w-3.5 h-3.5 text-slate-600" />
               <span>엑셀</span>
@@ -361,7 +393,6 @@ export function AttendanceTable({
                     ? 'bg-white text-slate-900 shadow-2xs font-bold'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
-                title="모바일 추천 카드 뷰 (스크롤 최소화)"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
                 <span>카드 뷰</span>
@@ -433,9 +464,6 @@ export function AttendanceTable({
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-pink-500 inline-block" /> OB회원
           </span>
-          <span className="text-[10px] text-slate-400 font-normal ml-auto">
-            (이름 클릭 시 구분 변경)
-          </span>
         </div>
       </div>
 
@@ -497,7 +525,6 @@ export function AttendanceTable({
                       <td
                         onClick={() => onEditMember(member)}
                         className="py-2.5 px-2.5 sm:py-3 sm:px-4 font-extrabold text-slate-900 border-r border-slate-200/80 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] whitespace-nowrap cursor-pointer group/name"
-                        title={`클릭하여 회원 구분 및 정보 수정 (${typeName})`}
                       >
                         <div className="flex items-center gap-2">
                           <span
@@ -608,7 +635,6 @@ export function AttendanceTable({
                             type="button"
                             onClick={() => setNoteModalMember(member)}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-800 transition border border-slate-200/80 font-medium max-w-[80px] sm:max-w-[105px] cursor-pointer shadow-2xs group/note"
-                            title="클릭하여 비고 (메모) 원문 전체 보기"
                           >
                             <FileText className="w-3 h-3 text-slate-500 shrink-0 group-hover/note:text-slate-900" />
                             <span className="truncate">{member.note}</span>
@@ -694,7 +720,6 @@ export function AttendanceTable({
                     <div
                       onClick={() => onEditMember(member)}
                       className="flex items-center gap-2 cursor-pointer group/name"
-                      title={`클릭하여 회원 구분 및 정보 수정 (${typeName})`}
                     >
                       <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg font-mono">
                         #{index + 1}
@@ -751,7 +776,6 @@ export function AttendanceTable({
                         type="button"
                         onClick={() => setNoteModalMember(member)}
                         className="text-xs font-medium text-slate-800 hover:text-slate-950 truncate max-w-[200px] bg-slate-50 px-2 py-0.5 rounded border border-slate-200/80 flex items-center gap-1 cursor-pointer"
-                        title="클릭하여 비고 (메모) 원문 전체 보기"
                       >
                         <FileText className="w-3 h-3 text-slate-500 shrink-0" />
                         <span className="truncate">{member.note}</span>
@@ -820,17 +844,13 @@ export function AttendanceTable({
         >
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-slate-500" />
-            <span>지난 학기 기록 열람 (과거 데이터 압축됨)</span>
+            <span>지난 학기</span>
           </div>
           {showPastArchives ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
         </button>
 
         {showPastArchives && (
           <div className="p-4 border-t border-slate-100 bg-slate-50/50 space-y-3 animate-in fade-in duration-200">
-            <p className="text-xs text-slate-500">
-              과거 학기별 참석 기록입니다. 학기를 선택하시면 해당 학기의 출석 일자를 상세 조회할 수 있습니다.
-            </p>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {DEFAULT_SEMESTERS.filter((s) => s.id !== selectedSemesterId).map((pastSem) => (
                 <div
@@ -856,6 +876,47 @@ export function AttendanceTable({
           </div>
         )}
       </div>
+
+      {/* Date pill hover preview */}
+      {hoverPreview && (() => {
+        const sources = getAttendanceSources(hoverPreview.member, hoverPreview.monthKey, hoverPreview.day);
+        const first = sources[0];
+        const width = 288;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const left = Math.min(
+          Math.max(8, hoverPreview.rect.left + hoverPreview.rect.width / 2 - width / 2),
+          vw - width - 8
+        );
+        const placeAbove = hoverPreview.rect.bottom + 220 > vh && hoverPreview.rect.top > 220;
+        const style: React.CSSProperties = placeAbove
+          ? { left, width, bottom: vh - hoverPreview.rect.top + 6 }
+          : { left, width, top: hoverPreview.rect.bottom + 6 };
+
+        return (
+          <div
+            style={style}
+            className="fixed z-40 pointer-events-none bg-white rounded-xl border border-slate-200 shadow-lg p-3 space-y-1.5 animate-in fade-in duration-100"
+          >
+            {first ? (
+              <>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold gap-2">
+                  <span className="truncate">{first.sender}</span>
+                  <span className="shrink-0">{first.timestamp}</span>
+                </div>
+                <div className="text-xs text-slate-900 leading-relaxed whitespace-pre-wrap line-clamp-5">
+                  <HighlightedMessage text={first.message} />
+                </div>
+                {sources.length > 1 && (
+                  <div className="text-[11px] text-slate-400 font-semibold">외 {sources.length - 1}건</div>
+                )}
+              </>
+            ) : (
+              <div className="text-xs text-slate-500">수동 추가</div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Note Detail Modal */}
       {noteModalMember && (

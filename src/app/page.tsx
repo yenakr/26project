@@ -407,9 +407,6 @@ export default function Home() {
                 <h2 className="text-xl font-bold text-slate-900 mb-1">
                   {isProcessingFile ? '대화록 분석 중...' : '카카오톡 대화록 파일 선택'}
                 </h2>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  카톡 대화 내용 파일(.txt 또는 .csv)을 선택하거나 올려주세요.
-                </p>
               </div>
 
               <div className="flex items-center justify-center">

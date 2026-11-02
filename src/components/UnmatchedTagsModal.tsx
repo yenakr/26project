@@ -41,9 +41,6 @@ export function UnmatchedTagsModal({
           <h2 className="text-base font-bold text-slate-900">단일 태그 출석 확인 ({unmatchedTags.length}건)</h2>
         </div>
 
-        <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-          1명만 태그되어 출석 인증인지 단순 질문/호출인지 판별이 필요한 메시지입니다. 대화 원문을 확인하신 후 출석 여부를 결정해 주세요.
-        </p>
 
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {unmatchedTags.map((tag) => (

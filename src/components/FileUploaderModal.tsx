@@ -69,9 +69,6 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
         </button>
 
         <h2 className="text-base font-bold text-slate-900 mb-1">카카오톡 대화록 불러오기</h2>
-        <p className="text-xs text-slate-500 mb-4">
-          대화 내보내기 텍스트 파일(.txt)을 선택하시면 출석수가 자동 집계됩니다.
-        </p>
 
         {!parseResult ? (
           <div
@@ -93,7 +90,6 @@ export function FileUploaderModal({ currentMembers, onApply, onClose }: FileUplo
               <p className="text-xs font-bold text-slate-900">
                 {isLoading ? '대화록 분석 중...' : '.txt / .csv 파일 선택 또는 드래그'}
               </p>
-              <p className="text-[11px] text-slate-400 mt-0.5">카카오톡 내보내기 텍스트 / CSV 파일</p>
             </div>
             <input
               type="file"

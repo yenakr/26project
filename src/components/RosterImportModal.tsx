@@ -56,9 +56,6 @@ export function RosterImportModal({ onImportNames, onClose }: RosterImportModalP
           <h2 className="text-base font-bold text-slate-900">전체 크루원 명단 불러오기</h2>
         </div>
 
-        <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-          카톡 출석 태그에 참여하지 않은 미참석 회원도 출석부에 표기할 수 있습니다. 이름 목록을 텍스트로 붙여넣거나 텍스트 파일(.txt)을 업로드해 주세요.
-        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
