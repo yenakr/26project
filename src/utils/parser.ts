@@ -1,4 +1,28 @@
-import { Member, ParseResult, UnmatchedTag, ReviewItem, AttendanceSource } from '../types/attendance';
+import {
+  Member,
+  ParseResult,
+  UnmatchedTag,
+  ReviewItem,
+  AttendanceSource,
+  ContextLine,
+  MessageContext
+} from '../types/attendance';
+
+// How many surrounding chat messages to keep before / after an attendance message
+const CONTEXT_SIZE = 5;
+const CONTEXT_MAX_CHARS = 300;
+
+function clipContextText(text: string): string {
+  return text.length > CONTEXT_MAX_CHARS ? `${text.slice(0, CONTEXT_MAX_CHARS)}…` : text;
+}
+
+// When an existing source (saved before context existed) matches, fill in its context
+function attachContextIfMissing(existing: AttendanceSource[], message: string, context?: MessageContext) {
+  if (!context) return;
+  existing.forEach((s) => {
+    if (s.message === message && !s.context) s.context = context;
+  });
+}
 
 export function decodeFileBuffer(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -84,9 +108,43 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
   const userJoinedRegex = /(?:(\d{4})[\.년]\s*(\d{1,2})[\.월]\s*(\d{1,2})[\.일]?\s*(?:오전|오후)\s*\d{1,2}:\d{2}(?::\d{2})?[,:]\s*)?(.+?)님이 들어왔습니다\./;
   const userLeftRegex = /(?:(\d{4})[\.년]\s*(\d{1,2})[\.월]\s*(\d{1,2})[\.일]?\s*(?:오전|오후)\s*\d{1,2}:\d{2}(?::\d{2})?[,:]\s*)?(.+?)님(?:이 나갔습니다|을 내보냈습니다|을 강퇴했습니다)\./;
 
-  lines.forEach((line) => {
+  const toContextLine = (raw: string): ContextLine => {
+    const m = raw.match(kakaoDotLineRegex) || raw.match(kakaoKorLineRegex);
+    if (m) {
+      return { sender: m[6].trim(), time: `${m[4]} ${m[5]}`, message: clipContextText(m[7]) };
+    }
+    const b = raw.match(kakaoBracketMsgRegex);
+    if (b) {
+      return { sender: b[1].trim(), time: `${b[2]} ${b[3]}`, message: clipContextText(b[4]) };
+    }
+    return { message: clipContextText(raw) };
+  };
+
+  const buildContext = (idx: number): MessageContext => {
+    const isSkippable = (t: string) =>
+      !t || !!(t.match(dateHeaderRegex) || t.match(simpleDateHeaderRegex) || t.match(dotDateHeaderRegex));
+
+    const before: ContextLine[] = [];
+    for (let i = idx - 1; i >= 0 && before.length < CONTEXT_SIZE; i--) {
+      const t = lines[i].trim();
+      if (isSkippable(t)) continue;
+      before.unshift(toContextLine(t));
+    }
+    const after: ContextLine[] = [];
+    for (let i = idx + 1; i < lines.length && after.length < CONTEXT_SIZE; i++) {
+      const t = lines[i].trim();
+      if (isSkippable(t)) continue;
+      after.push(toContextLine(t));
+    }
+    return { before, after };
+  };
+
+  lines.forEach((line, lineIdx) => {
     const trimmed = line.trim();
     if (!trimmed) return;
+
+    // Surrounding chat messages, only needed for tagged (attendance) lines
+    const msgContext: MessageContext | undefined = trimmed.includes('@') ? buildContext(lineIdx) : undefined;
 
     // Check Header line formats (must match standalone date line)
     const headerMatch = trimmed.match(dateHeaderRegex) || trimmed.match(simpleDateHeaderRegex) || trimmed.match(dotDateHeaderRegex);
@@ -239,6 +297,7 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
             monthKey: currentMonthKey,
             sender: senderName || '카카오톡',
             fullMessage: messageText,
+            context: msgContext,
             candidates: validMentionsInLine.map((name) => ({ name, isSelected: true }))
           });
 
@@ -280,7 +339,8 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
             timestamp: formattedFullDateStr,
             sender: senderName || '카카오톡',
             message: messageText,
-            decisionType: 'auto'
+            decisionType: 'auto',
+            context: msgContext
           };
 
           const dayKey = `${currentMonthKey}.${currentDay}`;
@@ -313,6 +373,8 @@ export function parseKakaoTalkLog(logText: string, currentMembers: Member[] = []
             const alreadyHasSource = member.sources[dayKey].some((s) => s.message === messageText);
             if (!alreadyHasSource) {
               member.sources[dayKey].push(sourceObj);
+            } else {
+              attachContextIfMissing(member.sources[dayKey], messageText, msgContext);
             }
           });
 
@@ -408,7 +470,22 @@ function parseKakaoCsvLog(csvText: string, currentMembers: Member[] = []): Parse
 
   const records = parseCsvRecords(csvText);
 
-  records.forEach((record) => {
+  const toCsvContextLine = (r: (typeof records)[number]): ContextLine => ({
+    sender: r.sender,
+    time: `${r.ampm} ${r.time}`,
+    message: clipContextText(r.message)
+  });
+
+  const buildCsvContext = (idx: number): MessageContext => ({
+    before: records.slice(Math.max(0, idx - CONTEXT_SIZE), idx).map(toCsvContextLine),
+    after: records.slice(idx + 1, idx + 1 + CONTEXT_SIZE).map(toCsvContextLine)
+  });
+
+  records.forEach((record, recordIdx) => {
+    const msgContext: MessageContext | undefined = record.message.includes('@')
+      ? buildCsvContext(recordIdx)
+      : undefined;
+
     const fullYearStr = record.fullYear;
     const currentYear = fullYearStr.slice(2);
     const currentMonth = String(parseInt(record.month, 10));
@@ -508,6 +585,7 @@ function parseKakaoCsvLog(csvText: string, currentMembers: Member[] = []): Parse
             monthKey: currentMonthKey,
             sender: senderName || '카카오톡',
             fullMessage: messageText,
+            context: msgContext,
             candidates: validMentionsInLine.map((name) => ({ name, isSelected: true }))
           });
 
@@ -547,7 +625,8 @@ function parseKakaoCsvLog(csvText: string, currentMembers: Member[] = []): Parse
             timestamp: formattedFullDateStr,
             sender: senderName || '카카오톡',
             message: messageText,
-            decisionType: 'auto'
+            decisionType: 'auto',
+            context: msgContext
           };
 
           const dayKey = `${currentMonthKey}.${currentDay}`;
@@ -579,6 +658,8 @@ function parseKakaoCsvLog(csvText: string, currentMembers: Member[] = []): Parse
             const alreadyHasSource = member.sources[dayKey].some((s) => s.message === messageText);
             if (!alreadyHasSource) {
               member.sources[dayKey].push(sourceObj);
+            } else {
+              attachContextIfMissing(member.sources[dayKey], messageText, msgContext);
             }
           });
 

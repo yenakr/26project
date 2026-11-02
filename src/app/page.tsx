@@ -205,7 +205,8 @@ export default function Home() {
       timestamp: item.formattedDate,
       sender: item.sender,
       message: item.fullMessage,
-      decisionType: 'review'
+      decisionType: 'review',
+      context: item.context
     };
 
     const dayKey = `${item.monthKey}.${item.day}`;

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X, MessageSquare, Trash2, Calendar, User, Info } from 'lucide-react';
-import { AttendanceSource } from '../types/attendance';
+import { AttendanceSource, ContextLine } from '../types/attendance';
 import { HighlightedMessage } from './HighlightedMessage';
 
 interface AttendanceSourceModalProps {
@@ -11,6 +11,16 @@ interface AttendanceSourceModalProps {
   isEditMode: boolean;
   onDeleteAttendanceDay: (memberName: string, monthKey: string, day: string) => void;
   onClose: () => void;
+}
+
+function ContextRow({ line }: { line: ContextLine }) {
+  return (
+    <div className="text-[11px] leading-relaxed text-slate-400 whitespace-pre-wrap">
+      {line.sender && <span className="font-semibold text-slate-500">{line.sender} </span>}
+      {line.time && <span className="mr-1">{line.time}</span>}
+      <span>{line.message}</span>
+    </div>
+  );
 }
 
 export function AttendanceSourceModal({
@@ -24,6 +34,12 @@ export function AttendanceSourceModal({
 }: AttendanceSourceModalProps) {
   const parts = monthKey.split('.');
   const monthNum = parts.length === 2 ? parseInt(parts[1], 10) : monthKey;
+
+  // Start scrolled to the actual attendance message so the messages before it sit just above
+  const firstMessageRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    firstMessageRef.current?.scrollIntoView({ block: 'center' });
+  }, []);
 
   return (
     <div
@@ -48,7 +64,7 @@ export function AttendanceSourceModal({
           </div>
           <div>
             <h2 className="text-base font-extrabold text-slate-900">
-              원문 확인 · {memberName} ({monthNum}월 {day}일)
+              {memberName} ({monthNum}월 {day}일)
             </h2>
           </div>
         </div>
@@ -78,10 +94,31 @@ export function AttendanceSourceModal({
                   작성자: <span className="text-slate-900 font-extrabold">{src.sender}</span>
                 </div>
 
+                {/* Messages before */}
+                {src.context && src.context.before.length > 0 && (
+                  <div className="space-y-1">
+                    {src.context.before.map((line, i) => (
+                      <ContextRow key={`b-${i}`} line={line} />
+                    ))}
+                  </div>
+                )}
+
                 {/* Original Message Text */}
-                <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs text-slate-900 font-sans leading-relaxed whitespace-pre-wrap">
+                <div
+                  ref={idx === 0 ? firstMessageRef : undefined}
+                  className="bg-white p-3.5 rounded-xl border border-slate-300 text-xs text-slate-900 font-sans leading-relaxed whitespace-pre-wrap"
+                >
                   <HighlightedMessage text={src.message} />
                 </div>
+
+                {/* Messages after */}
+                {src.context && src.context.after.length > 0 && (
+                  <div className="space-y-1">
+                    {src.context.after.map((line, i) => (
+                      <ContextRow key={`a-${i}`} line={line} />
+                    ))}
+                  </div>
+                )}
               </div>
             ))
           ) : (

@@ -2,12 +2,24 @@ export interface AttendanceRecord {
   [monthKey: string]: string; // Key e.g., '26.9', '26.10', '25.9'
 }
 
+export interface ContextLine {
+  sender?: string;
+  time?: string; // e.g. "오후 10:02"
+  message: string;
+}
+
+export interface MessageContext {
+  before: ContextLine[];
+  after: ContextLine[];
+}
+
 export interface AttendanceSource {
   id: string;
   timestamp: string; // e.g. "2026년 9월 18일 금요일 오후 10:02"
   sender: string;
   message: string;
   decisionType: 'auto' | 'review' | 'manual';
+  context?: MessageContext; // surrounding chat messages (before / after)
 }
 
 export type MemberRoleType = '미지정' | '신입회원' | '정회원' | 'OB회원';
@@ -40,6 +52,7 @@ export interface ReviewItem {
   sender: string;
   fullMessage: string;
   candidates: ReviewCandidate[];
+  context?: MessageContext;
 }
 
 export interface UnmatchedTag {
